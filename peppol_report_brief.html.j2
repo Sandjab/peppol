@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PEPPOL France · Comptages quotidiens · {{ production_date_short }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --peppol-red-dark:    #C00404;
+  --peppol-red:         #D90D25;
+  --peppol-black:       #181818;
+  --peppol-gray-light:  #F3F3F6;
+  --peppol-r800:        #660000;
+  --peppol-r700:        #960000;
+  --peppol-r400:        #FF6464;
+  --peppol-r300:        #FF9696;
+  --peppol-r200:        #FFC8C8;
+  --peppol-r100:        #FFF0F0;
+  --peppol-white:       #FFFFFF;
+
+  --bg:           var(--peppol-white);
+  --text:         var(--peppol-black);
+  --text-muted:   var(--peppol-r800);
+  --title:        var(--peppol-red-dark);
+  --accent:       var(--peppol-red);
+  --card:         var(--peppol-r100);
+  --border:       var(--peppol-r200);
+
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "SF Mono", Menlo, monospace;
+}
+
+@page {
+  size: A4;
+  margin: 18mm 14mm 22mm 14mm;
+
+  @bottom-left {
+    content: "Comptages quotidiens · PEPPOL France · adoption EXTENDED-CTC-FR";
+    font-family: "Geist Mono", monospace;
+    font-size: 8.5pt;
+    color: #660000;
+    padding-top: 5mm;
+    border-top: 0.5pt solid #FFC8C8;
+    width: 150mm;
+    letter-spacing: 0.04em;
+    vertical-align: top;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font-family: "Geist Mono", monospace;
+    font-size: 8.5pt;
+    color: #C00404;
+    font-weight: 600;
+    padding-top: 5mm;
+    border-top: 0.5pt solid #FFC8C8;
+    width: 25mm;
+    letter-spacing: 0.04em;
+    text-align: right;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+  @top-right {
+    content: "{{ author_short }} · {{ production_date_short }}";
+    font-family: "Geist Mono", monospace;
+    font-size: 8.5pt;
+    color: #660000;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+}
+
+@page :first {
+  margin-top: 14mm;
+  @top-right { content: ""; }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 10.5pt;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.frame {
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 56px 96px;
+}
+
+@media print {
+  .frame { padding: 0; }
+}
+
+/* ─── MASTHEAD ───────────────────────────────── */
+.masthead {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--peppol-r200);
+}
+
+.peppol-block {
+  display: inline-flex;
+  align-items: center;
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.masthead .meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.masthead .right {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* ─── HERO ───────────────────────────────────── */
+.hero { padding: 36px 0 24px; }
+
+.hero .label {
+  font-family: var(--font-mono);
+  font-size: 11pt;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 12px;
+}
+
+h1 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 32pt;
+  line-height: 1.0;
+  letter-spacing: -0.03em;
+  color: var(--text);
+}
+
+.subtitle {
+  margin-top: 16px;
+  font-size: 12pt;
+  color: var(--text-muted);
+}
+.subtitle strong { color: var(--text); font-weight: 600; }
+
+/* ─── SECTION ────────────────────────────────── */
+section {
+  margin-top: 40px;
+  page-break-inside: avoid;
+}
+
+h2 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 18pt;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+  line-height: 1.15;
+}
+h2 .sub {
+  display: inline;
+  margin-left: 14px;
+  font-family: var(--font-mono);
+  font-size: 10pt;
+  color: var(--text-muted);
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+/* ─── TABLE ──────────────────────────────────── */
+.t {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10.5pt;
+}
+.t thead th {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  text-align: left;
+  padding: 9px 12px;
+  font-family: var(--font-mono);
+  font-size: 9pt;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.t thead th.num { text-align: right; }
+.t tbody td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.t tbody tr:nth-child(even) { background: var(--card); }
+.t tbody td.num {
+  font-family: var(--font-mono);
+  text-align: right;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+.t .label-cell {
+  font-weight: 500;
+}
+.t .label-cell small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 8.5pt;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 2px;
+}
+.t .ext { color: var(--accent); font-weight: 600; }
+.t .pos { color: var(--peppol-r800); }
+.t .neg { color: var(--text-muted); }
+.t .zero { color: var(--text-muted); }
+.t .dash { color: var(--text-muted); font-family: var(--font-mono); }
+
+/* ─── CHARTS ─────────────────────────────────── */
+.charts {
+  display: grid;
+  gap: 18px;
+  margin-top: 8px;
+}
+.chart-panel {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 18px 20px;
+}
+.chart-panel .chart-title {
+  font-family: var(--font-mono);
+  font-size: 10pt;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.chart-panel svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* ─── METHOD ─────────────────────────────────── */
+.method {
+  background: var(--peppol-black);
+  color: var(--peppol-white);
+  padding: 22px 26px;
+  margin-top: 36px;
+  font-family: var(--font-mono);
+  font-size: 9pt;
+  line-height: 1.55;
+  page-break-inside: avoid;
+}
+.method h2 {
+  color: var(--peppol-white);
+  font-family: var(--font-mono);
+  font-size: 9pt;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.method h2::before {
+  content: "";
+  display: block;
+  width: 20px;
+  height: 3px;
+  background: var(--peppol-red);
+}
+.method p { color: rgba(255,255,255,0.85); margin-bottom: 6px; }
+.method code {
+  background: rgba(255,255,255,0.08);
+  padding: 1px 5px;
+  font-size: 8.5pt;
+  color: var(--peppol-r300);
+}
+.method a {
+  color: var(--peppol-r300);
+  text-decoration: none;
+  border-bottom: 1px solid var(--peppol-red);
+}
+
+/* ─── COLOPHON ───────────────────────────────── */
+.colophon {
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  font-family: var(--font-mono);
+  font-size: 9pt;
+  color: var(--text-muted);
+}
+.colophon .right { text-align: right; }
+.colophon a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+}
+.colophon .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.colophon .brand .peppol-mini {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  padding: 3px 7px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+}
+</style>
+</head>
+<body>
+<div class="frame">
+
+<header class="masthead">
+  <div class="peppol-block">@Sandjab</div>
+  <div class="meta">Comptages quotidiens · PEPPOL France</div>
+  <div class="right">Publié le {{ production_date_short }}</div>
+</header>
+
+<section class="hero">
+  <div class="label">Snapshot Peppol Directory · country=FR</div>
+  <h1>Adoption EXTENDED-CTC-FR — comptages au {{ production_date_short }}.</h1>
+  <p class="subtitle">
+    Historique sur <strong>{{ num_runs }}</strong> jour{% if num_runs > 1 %}s{% endif %}
+    {%- if date_range_start != date_range_end %}, du <strong>{{ date_range_start_short }}</strong> au <strong>{{ date_range_end_short }}</strong>{% endif %}.
+    Source&nbsp;: <code style="font-family:var(--font-mono);font-size:9pt;background:var(--card);padding:1px 5px;">directory.peppol.eu/search/1.0/json</code>.
+  </p>
+</section>
+
+<!-- ─── SECTION : COMPTAGES BRUTS ─── -->
+<section>
+  <h2>Comptages bruts du jour <span class="sub">country=FR</span></h2>
+  <table class="t">
+    <thead>
+      <tr>
+        <th>Doctype</th>
+        <th class="num">Participants FR</th>
+      </tr>
+    </thead>
+    <tbody>
+{%- for row in counts_rows %}
+      <tr>
+        <td class="label-cell">{% if row.ext %}<span class="ext">{{ row.label }}</span>{% else %}{{ row.label }}{% endif %}<small>{{ row.urn_short }}</small></td>
+        <td class="num">{{ row.value|fr_int }}</td>
+      </tr>
+{%- endfor %}
+    </tbody>
+  </table>
+</section>
+
+<!-- ─── SECTION : ÉVOLUTION ─── -->
+{%- if has_history %}
+<section>
+  <h2>Évolution <span class="sub">deltas vs J−1 · J−7 · origine</span></h2>
+  <table class="t">
+    <thead>
+      <tr>
+        <th>Doctype</th>
+        <th class="num">Aujourd'hui</th>
+        <th class="num">Δ J−1</th>
+        <th class="num">Δ J−7</th>
+        <th class="num">Δ origine</th>
+      </tr>
+    </thead>
+    <tbody>
+{%- for row in evolution_rows %}
+      <tr>
+        <td class="label-cell">{% if row.ext %}<span class="ext">{{ row.label }}</span>{% else %}{{ row.label }}{% endif %}</td>
+        <td class="num">{{ row.value|fr_int }}</td>
+        <td class="num {{ row.d1_class }}">{{ row.d1 }}</td>
+        <td class="num {{ row.d7_class }}">{{ row.d7 }}</td>
+        <td class="num {{ row.d_orig_class }}">{{ row.d_orig }}</td>
+      </tr>
+{%- endfor %}
+    </tbody>
+  </table>
+  <p style="margin-top:8px;font-size:9pt;color:var(--text-muted);line-height:1.55;">
+    Références effectives&nbsp;:
+    Δ J−1 = vs <strong>{{ evolution_refs.j1.date_short }}</strong>{% if evolution_refs.j1.date and evolution_refs.j1.drift %} <span style="color:var(--accent)">(écart réel&nbsp;: {{ evolution_refs.j1.gap_days }}&nbsp;j)</span>{% elif evolution_refs.j1.gap_days %} ({{ evolution_refs.j1.gap_days }}&nbsp;j){% endif %} ·
+    Δ J−7 = vs <strong>{{ evolution_refs.j7.date_short }}</strong>{% if evolution_refs.j7.date and evolution_refs.j7.drift %} <span style="color:var(--accent)">(écart réel&nbsp;: {{ evolution_refs.j7.gap_days }}&nbsp;j)</span>{% elif evolution_refs.j7.gap_days %} ({{ evolution_refs.j7.gap_days }}&nbsp;j){% endif %} ·
+    Δ origine = vs <strong>{{ evolution_refs.orig.date_short }}</strong>{% if evolution_refs.orig.gap_days %} ({{ evolution_refs.orig.gap_days }}&nbsp;j){% endif %}.
+    {% if evolution_refs.j1.drift or evolution_refs.j7.drift %}En rouge&nbsp;: la fenêtre nominale n'est pas respectée à cause d'un trou dans l'historique.{% endif %}
+    « — » = pas d'historique disponible à ce pas.
+  </p>
+</section>
+{%- endif %}
+
+<!-- ─── SECTION : GRAPHIQUES ─── -->
+{%- if has_history %}
+<section>
+  <h2>Évolution graphique</h2>
+  <div class="charts">
+    <div class="chart-panel">
+      <div class="chart-title">Volumes par doctype (FR)</div>
+      {{ svg_volumes | safe }}
+    </div>
+    <div class="chart-panel">
+      <div class="chart-title">Taux d'adoption EXTENDED-CTC-FR (UBL Invoice EXT ÷ UBL Invoice CIUS)</div>
+      {{ svg_ratio | safe }}
+    </div>
+  </div>
+</section>
+{%- endif %}
+
+<!-- ─── MÉTHODE ─── -->
+<section class="method">
+  <h2>Méthode &amp; reproductibilité</h2>
+  <p>Données extraites de l'API publique <strong>Peppol Directory</strong> (OpenPeppol AISBL) via <code>/search/1.0/json?country=FR&amp;rpc=1</code> pour chacun des 6 doctypes France listés. Snapshot daté du <strong>{{ production_datetime_long }}</strong>.</p>
+  <p>Le chiffre par doctype provient du champ <code>total-result-count</code> renvoyé par l'API (comptage exhaustif côté serveur sur l'index Directory). L'historique est conservé dans <code>peppol_history.json</code>, une entrée par jour, écrasement si re-run. Indexation Directory asynchrone&nbsp;: variations de quelques pour-cent jour à jour possibles, indépendantes des déclarations SMP réelles.</p>
+  <p>Référence PASR&nbsp;: <a href="{{ pasr_url }}" target="_blank">France PASR 2026.02.27</a> (§6 et §7 — formats de réception obligatoires pour les PA).</p>
+</section>
+
+<footer class="colophon">
+  <div>
+    <div class="brand"><span class="peppol-mini">@Sandjab</span> Comptages quotidiens · PEPPOL France</div>
+    Rapport produit par <strong style="color:var(--text);font-weight:600;">{{ author_full }}</strong><br>
+    Date de production&nbsp;: {{ production_date_short }}<br>
+    Données &copy; OpenPeppol AISBL — <a href="https://directory.peppol.eu" target="_blank">directory.peppol.eu</a>
+  </div>
+  <div class="right">
+    PASR PEPPOL France 27 fév. 2026<br>
+    <a href="{{ pasr_url }}" target="_blank">openpeppol.atlassian.net</a>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
