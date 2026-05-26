@@ -72,9 +72,13 @@ HTTP_PROXIES: dict[str, str] | None = None
 def _normalize_proxy_host(raw: str) -> str:
     """Accepte [scheme://]host[:port]. Refuse les credentials inline."""
     raw = raw.strip()
+    if not raw:
+        raise ValueError("--proxy : valeur vide.")
     if "://" not in raw:
         raw = "http://" + raw
     scheme, _, rest = raw.partition("://")
+    if not rest:
+        raise ValueError("--proxy : hôte manquant.")
     if "@" in rest:
         raise ValueError(
             "--proxy n'accepte pas les credentials inline. "
@@ -819,7 +823,7 @@ def main() -> int:
             user = input("Proxy user (vide si pas d'auth) : ").strip()
         if user and not password and sys.stdin.isatty():
             password = getpass.getpass("Proxy password : ")
-        if user and not password:
+        if user and not password and not sys.stdin.isatty():
             log.error(
                 "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
                 "non-interactif : abandon."
@@ -828,10 +832,11 @@ def main() -> int:
         proxy_url = _build_proxy_url(host_url, user, password)
         global HTTP_PROXIES
         HTTP_PROXIES = {"http": proxy_url, "https": proxy_url}
-        # Exporte aussi en env standard pour que WeasyPrint (fetch fonts/CSS
-        # via urllib) et tout sous-processus respectent le proxy.
-        os.environ["http_proxy"] = proxy_url
-        os.environ["https_proxy"] = proxy_url
+        # Exporte aussi en env standard (lowercase + uppercase) pour que
+        # WeasyPrint (fetch fonts/CSS via urllib) et tout sous-processus
+        # respectent le proxy.
+        for key in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
+            os.environ[key] = proxy_url
         auth_state = f"avec auth ({user})" if user else "sans auth"
         log.info("Proxy actif : %s — %s", host_url, auth_state)
 
