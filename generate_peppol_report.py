@@ -179,8 +179,8 @@ def query_directory(urn: str, country: str | None, rpc: int = 1, rpi: int = 0) -
         else:
             if resp.status_code == 200:
                 return resp.json()
-            # 5xx is transient (server hiccup), 4xx is on us — don't retry 4xx.
-            if resp.status_code < 500:
+            # 5xx and 429 are transient; other 4xx are client errors — no retry.
+            if resp.status_code < 500 and resp.status_code != 429:
                 raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
             last_err = RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
         if attempt < HTTP_RETRY_ATTEMPTS - 1:
@@ -650,6 +650,8 @@ def fr_date(d) -> str:
 def fr_datetime(dt: datetime) -> str:
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=PARIS_TZ)
+    else:
+        dt = dt.astimezone(PARIS_TZ)
     return f"{fr_date(dt)}, {dt.strftime('%H:%M')}\u00a0{dt.strftime('%Z')}"
 
 
