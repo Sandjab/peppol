@@ -16,9 +16,8 @@ quotidien d'adoption des doctypes France (UBL/CII CIUS & EXTENDED, Factur-X, CDA
 - `peppol_brief_sample.pdf` — exemple de sortie.
 
 Le template `peppol_report_template.html.j2` (mode `--detailed`) est
-**volontairement non versionné** : il est livré séparément aux utilisateurs
-qui veulent l'exécuter en local. Le pipeline automatique ne publie que le
-brief.
+versionné pour permettre l'exécution en local. Le pipeline automatique
+ne l'utilise pas et ne publie que le brief.
 
 ## Commandes utiles
 
