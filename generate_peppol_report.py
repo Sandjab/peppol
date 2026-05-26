@@ -40,6 +40,9 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 try:
     import requests
@@ -194,7 +197,7 @@ def save_history(history: dict, path: Path) -> None:
 
 def upsert_today(history: dict, today_key: str, counts_fr: dict[str, int]) -> None:
     history["runs"][today_key] = {
-        "fetched_at": datetime.now().isoformat(timespec="seconds"),
+        "fetched_at": datetime.now(PARIS_TZ).isoformat(timespec="seconds"),
         "counts_fr": counts_fr,
     }
 
@@ -623,7 +626,9 @@ def fr_date(d) -> str:
 
 
 def fr_datetime(dt: datetime) -> str:
-    return f"{fr_date(dt)}, {dt.strftime('%H:%M')}\u00a0CET"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=PARIS_TZ)
+    return f"{fr_date(dt)}, {dt.strftime('%H:%M')}\u00a0{dt.strftime('%Z')}"
 
 
 def fr_int(n: int) -> str:
@@ -702,7 +707,7 @@ def render_brief(history: dict, today_key: str, *, template_path: Path, author_f
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
-        production_datetime_long=fr_datetime(datetime.now()),
+        production_datetime_long=fr_datetime(datetime.now(PARIS_TZ)),
         counts_rows=build_counts_rows(counts_fr),
         evolution_rows=evo["rows"],
         evolution_refs=evo["refs"],
@@ -747,7 +752,7 @@ def render_detailed(detailed_stats: dict, today_key: str, *, template_path: Path
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
-        production_datetime_long=fr_datetime(datetime.now()),
+        production_datetime_long=fr_datetime(datetime.now(PARIS_TZ)),
         counts=counts,
         doctype_bars=doctype_bars,
         gap=gap,
