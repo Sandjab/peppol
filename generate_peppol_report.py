@@ -357,8 +357,10 @@ def render_svg_volumes(history: dict, width: int = 800, height: int = 360) -> st
     if not all_values:
         return f'<svg viewBox="0 0 {width} {height}"></svg>'
 
-    vmin = 0
-    vmax = _nice_round(max(all_values) * 1.05)
+    raw_min, raw_max = min(all_values), max(all_values)
+    span = max(raw_max - raw_min, raw_max * 0.05, 1)
+    vmin = max(0, int(raw_min - span * 0.10))
+    vmax = int(raw_max + span * 0.10)
 
     margin_l, margin_r, margin_t, margin_b = 64, 16, 18, 78
     plot_w = width - margin_l - margin_r
