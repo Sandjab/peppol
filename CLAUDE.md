@@ -1,0 +1,66 @@
+# CLAUDE.md
+
+Briefing court pour Claude Code travaillant sur ce repo.
+
+## Quoi
+
+Pipeline Python qui interroge l'API **Peppol Directory** et produit un rapport
+quotidien d'adoption des doctypes France (UBL/CII CIUS & EXTENDED, Factur-X, CDAR).
+
+- `generate_peppol_report.py` — CLI unique. Deux modes : `brief` (défaut, run
+  quotidien) et `--detailed` (analyse ponctuelle/mensuelle).
+- `peppol_report_brief.html.j2` — template Jinja2 du rapport brief.
+- `peppol_history.json` — mémoire des runs, **versionnée à la racine**, une
+  entrée par jour (`YYYY-MM-DD`). Un run du jour écrase l'entrée du jour.
+- `save/` — copie figée d'un historique d'exemple.
+- `peppol_brief_sample.pdf` — exemple de sortie.
+
+Pas de template `peppol_report_template.html.j2` dans le repo : le mode
+`--detailed` n'est donc pas opérationnel tant qu'il n'est pas ajouté.
+
+## Commandes utiles
+
+```bash
+pip install requests jinja2 weasyprint
+sudo apt install libcairo2 libpango-1.0-0 libpangoft2-1.0-0  # WeasyPrint
+
+# Run quotidien : historique à la racine, sortie dans ./out
+python generate_peppol_report.py --history peppol_history.json --output-dir ./out
+
+# Re-rendu sans appeler l'API (utile pour itérer sur le template)
+python generate_peppol_report.py --no-api --history peppol_history.json --output-dir ./out
+
+# HTML seulement (évite WeasyPrint)
+python generate_peppol_report.py --no-pdf --history peppol_history.json --output-dir ./out
+```
+
+Codes de sortie : `0` OK · `2` échec collecte/historique · `3` HTML OK mais
+PDF KO.
+
+## Publication automatique
+
+Workflow GitHub Actions `.github/workflows/daily-report.yml` :
+
+- Cron quotidien `0 7 * * *` UTC ≈ **09:00 Europe/Paris** en heure d'été
+  (CEST, UTC+2). En heure d'hiver (CET, UTC+1) le run tombe à 08:00 Paris —
+  ajuster le cron deux fois par an si la précision horaire compte.
+- Déclenchement manuel `workflow_dispatch` également disponible.
+- Étapes : install deps → run script → commit `peppol_history.json` mis à
+  jour sur la branche par défaut → publie le HTML sur **GitHub Pages**
+  (`sandjab.github.io/peppol`).
+- Le workflow ne déclenche son cron que depuis la branche par défaut (`main`)
+  — toute modification doit y être mergée pour être active.
+
+Pré-requis côté repo GitHub :
+
+1. Settings → Pages → **Source = GitHub Actions**.
+2. Settings → Actions → General → Workflow permissions = **Read and write**
+   (ou laisser au workflow son `permissions: contents: write`).
+
+## Conventions
+
+- Branche de dev courante : **`claude/charming-carson-qmaFX`** (cf. consigne
+  session). Merger vers `main` pour activer le cron.
+- Tout commit qui change l'historique du jour doit aussi régénérer le HTML
+  publié (le workflow s'en charge automatiquement).
+- Pas de secrets nécessaires : l'API Peppol Directory est publique.
