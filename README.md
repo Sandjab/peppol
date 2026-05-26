@@ -25,7 +25,6 @@ exécuter le script soi-même.
 | `peppol_report_brief.html.j2` | Template Jinja2 du rapport brief |
 | `peppol_report_template.html.j2` | Template Jinja2 du rapport détaillé (mode `--detailed`, usage local) |
 | `peppol_history.json` | Mémoire des runs (1 entrée par jour, JSON enrichi à chaque exécution) |
-| `peppol_brief_sample.pdf` | Exemple de sortie brief |
 
 ## Installation locale
 

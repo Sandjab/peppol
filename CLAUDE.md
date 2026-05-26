@@ -12,12 +12,9 @@ quotidien d'adoption des doctypes France (UBL/CII CIUS & EXTENDED, Factur-X, CDA
 - `peppol_report_brief.html.j2` — template Jinja2 du rapport brief.
 - `peppol_history.json` — mémoire des runs, **versionnée à la racine**, une
   entrée par jour (`YYYY-MM-DD`). Un run du jour écrase l'entrée du jour.
-- `save/` — copie figée d'un historique d'exemple.
-- `peppol_brief_sample.pdf` — exemple de sortie.
-
-Le template `peppol_report_template.html.j2` (mode `--detailed`) est
-versionné pour permettre l'exécution en local. Le pipeline automatique
-ne l'utilise pas et ne publie que le brief.
+- `peppol_report_template.html.j2` — template du mode `--detailed`, versionné
+  pour permettre l'exécution en local. Le pipeline automatique ne l'utilise
+  pas (publication limitée au brief).
 
 ## Commandes utiles
 
