@@ -15,13 +15,15 @@ quotidien d'adoption des doctypes France (UBL/CII CIUS & EXTENDED, Factur-X, CDA
 - `save/` — copie figée d'un historique d'exemple.
 - `peppol_brief_sample.pdf` — exemple de sortie.
 
-Pas de template `peppol_report_template.html.j2` dans le repo : le mode
-`--detailed` n'est donc pas opérationnel tant qu'il n'est pas ajouté.
+Le template `peppol_report_template.html.j2` (mode `--detailed`) est
+**volontairement non versionné** : il est livré séparément aux utilisateurs
+qui veulent l'exécuter en local. Le pipeline automatique ne publie que le
+brief.
 
 ## Commandes utiles
 
 ```bash
-pip install requests jinja2 weasyprint
+pip install -r requirements.txt
 sudo apt install libcairo2 libpango-1.0-0 libpangoft2-1.0-0  # WeasyPrint
 
 # Run quotidien : historique à la racine, sortie dans ./out
