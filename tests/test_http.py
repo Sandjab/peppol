@@ -70,6 +70,20 @@ class TestQueryDirectoryRetry:
                 m.query_directory("urn:foo", country="FR")
         assert calls["n"] == m.HTTP_RETRY_ATTEMPTS
 
+    def test_malformed_json_is_retried(self):
+        # HTTP 200 with invalid body (e.g. truncated, HTML error page from a proxy)
+        class BadJSON:
+            status_code = 200
+            def json(self):
+                raise ValueError("Expecting value: line 1 column 1 (char 0)")
+        calls = {"n": 0}
+        def fake_get(url, **kw):
+            calls["n"] += 1
+            return BadJSON() if calls["n"] < 2 else _FakeResp(200, {"ok": 1})
+        with mock.patch.object(m.requests, "get", fake_get):
+            assert m.query_directory("urn:foo", country="FR") == {"ok": 1}
+        assert calls["n"] == 2
+
 
 class TestFrDatetime:
     def test_naive_assumed_paris(self):

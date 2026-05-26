@@ -174,11 +174,11 @@ def query_directory(urn: str, country: str | None, rpc: int = 1, rpi: int = 0) -
     for attempt in range(HTTP_RETRY_ATTEMPTS):
         try:
             resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
-        except requests.RequestException as e:
-            last_err = e
-        else:
             if resp.status_code == 200:
                 return resp.json()
+        except (requests.RequestException, ValueError) as e:
+            last_err = e
+        else:
             # 5xx and 429 are transient; other 4xx are client errors — no retry.
             if resp.status_code < 500 and resp.status_code != 429:
                 raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
