@@ -91,10 +91,15 @@ def _build_proxy_url(host_url: str, user: str, password: str) -> str:
     if not user and not password:
         return host_url
     scheme, _, rest = host_url.partition("://")
-    cred = (
-        f"{urllib.parse.quote(user, safe='')}"
-        f":{urllib.parse.quote(password, safe='')}"
-    )
+    if user and password:
+        cred = (
+            f"{urllib.parse.quote(user, safe='')}"
+            f":{urllib.parse.quote(password, safe='')}"
+        )
+    elif user:
+        cred = urllib.parse.quote(user, safe="")
+    else:
+        cred = f":{urllib.parse.quote(password, safe='')}"
     return f"{scheme}://{cred}@{rest}"
 
 DOCTYPES_FR: dict[str, dict[str, Any]] = {
@@ -823,12 +828,19 @@ def main() -> int:
             user = input("Proxy user (vide si pas d'auth) : ").strip()
         if user and not password and sys.stdin.isatty():
             password = getpass.getpass("Proxy password : ")
-        if user and not password and not sys.stdin.isatty():
-            log.error(
-                "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
-                "non-interactif : abandon."
-            )
-            return 2
+        if not sys.stdin.isatty():
+            if user and "PEPPOL_PROXY_PASS" not in os.environ:
+                log.error(
+                    "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
+                    "non-interactif : abandon."
+                )
+                return 2
+            if password and not user:
+                log.error(
+                    "PEPPOL_PROXY_PASS défini sans PEPPOL_PROXY_USER en environnement "
+                    "non-interactif : abandon."
+                )
+                return 2
         proxy_url = _build_proxy_url(host_url, user, password)
         global HTTP_PROXIES
         HTTP_PROXIES = {"http": proxy_url, "https": proxy_url}
