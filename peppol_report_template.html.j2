@@ -1,0 +1,1477 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PEPPOL France · Adoption EXTENDED-CTC-FR · Rapport d'observation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet">
+<style>
+/* ════════ PRINT / PDF RULES ════════════════════════ */
+@page {
+  size: A4;
+  margin: 18mm 14mm 22mm 14mm;
+
+  @bottom-left {
+    content: "Rapport d'observation · PEPPOL France · adoption EXTENDED-CTC-FR";
+    font-family: "Geist Mono", monospace;
+    font-size: 8.5pt;
+    color: #660000;
+    padding-top: 5mm;
+    border-top: 0.5pt solid #FFC8C8;
+    width: 150mm;
+    letter-spacing: 0.04em;
+    vertical-align: top;
+  }
+  @bottom-right {
+    content: "Page " counter(page) " / " counter(pages);
+    font-family: "Geist Mono", monospace;
+    font-size: 8.5pt;
+    color: #C00404;
+    font-weight: 600;
+    padding-top: 5mm;
+    border-top: 0.5pt solid #FFC8C8;
+    width: 25mm;
+    letter-spacing: 0.04em;
+    text-align: right;
+    vertical-align: top;
+    white-space: nowrap;
+  }
+  @top-right {
+    content: "{{ author_short }} · {{ production_date_short }}";
+    font-family: "Geist Mono", monospace;
+    font-size: 8.5pt;
+    color: #660000;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+  }
+}
+
+/* First page: no top header */
+@page :first {
+  margin-top: 14mm;
+  @top-right { content: ""; }
+}
+
+/* Force page breaks only where really needed */
+.page-break {
+  page-break-before: always;
+}
+
+/* Avoid splitting cohesive blocks */
+.kpi,
+.callout,
+.profile-card,
+.evidence-col,
+.gloss-card,
+.sig-row,
+.doctype-row,
+.method pre {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+h1, h2, h3 {
+  page-break-after: avoid;
+  break-after: avoid;
+}
+
+/* Print media adjustments */
+
+</style>
+<style>
+:root {
+  /* ─── Palette ─── */
+  --peppol-red-dark:    #C00404;
+  --peppol-red:         #D90D25;
+  --peppol-black:       #181818;
+  --peppol-gray-light:  #F3F3F6;
+  --peppol-r900:        #330000;
+  --peppol-r800:        #660000;
+  --peppol-r700:        #960000;
+  --peppol-r400:        #FF6464;
+  --peppol-r300:        #FF9696;
+  --peppol-r200:        #FFC8C8;
+  --peppol-r100:        #FFF0F0;
+  --peppol-white:       #FFFFFF;
+
+  /* ─── Rôles sémantiques (thème light) ─── */
+  --bg:           var(--peppol-white);
+  --bg-soft:      var(--peppol-gray-light);
+  --text:         var(--peppol-black);
+  --text-muted:   var(--peppol-r800);
+  --text-light:   var(--peppol-r700);
+  --title:        var(--peppol-red-dark);
+  --accent:       var(--peppol-red);
+  --card:         var(--peppol-r100);
+  --card-strong:  var(--peppol-r300);
+  --border:       var(--peppol-r200);
+  --rule:         var(--peppol-black);
+  --stat-big:     var(--peppol-red-dark);
+  --footer:       var(--peppol-r800);
+
+  /* ─── Typographie ─── */
+  --font-sans: "Geist", -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: "Geist Mono", "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100vh;
+}
+
+/* ─── Subtle background texture (very low opacity) ─── */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(217,13,37,0.03), transparent 50%),
+    radial-gradient(ellipse at 0% 100%, rgba(192,4,4,0.02), transparent 50%);
+  z-index: 0;
+}
+
+.frame {
+  position: relative;
+  z-index: 1;
+  max-width: 1240px;
+  margin: 0 auto;
+  padding: 0 56px 96px;
+}
+
+/* ════ MASTHEAD ══════════════════════════════════════ */
+.masthead {
+  position: sticky;
+  top: 0;
+  background: var(--bg);
+  z-index: 100;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--peppol-r200);
+}
+
+.peppol-block {
+  display: inline-flex;
+  align-items: center;
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  padding: 8px 14px;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.masthead .meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+}
+
+.masthead .right {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  text-align: right;
+}
+
+/* ════ HERO ══════════════════════════════════════════ */
+.hero {
+  padding: 88px 0 64px;
+  position: relative;
+}
+
+.hero .label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.hero .label::after {
+  content: "";
+  height: 1px;
+  background: var(--accent);
+  flex: 1;
+  max-width: 120px;
+}
+
+h1.title {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(46px, 6.5vw, 84px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: var(--text);
+}
+h1.title .accent-word {
+  color: var(--accent);
+  font-weight: 700;
+}
+h1.title .underline {
+  position: relative;
+  display: inline-block;
+}
+h1.title .underline::after {
+  content: "";
+  position: absolute;
+  left: -2%;
+  right: -2%;
+  bottom: 4%;
+  height: 14%;
+  background: var(--peppol-r200);
+  z-index: -1;
+}
+
+.lede {
+  margin-top: 36px;
+  max-width: 780px;
+  font-size: 21px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  color: #2a2a2a;
+}
+.lede strong {
+  font-weight: 600;
+  color: var(--title);
+}
+
+.byline {
+  margin-top: 40px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+}
+.byline span::before {
+  content: "▸ ";
+  color: var(--accent);
+}
+
+/* ════ SECTIONS ══════════════════════════════════════ */
+.section {
+  margin-top: 96px;
+  scroll-margin-top: 96px;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  margin-bottom: 36px;
+}
+
+.section-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 20px;
+  flex-shrink: 0;
+  letter-spacing: -0.02em;
+}
+
+.section-title-block { padding-top: 6px; }
+
+.section-eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 8px;
+}
+
+h2 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: clamp(30px, 3.6vw, 44px);
+  line-height: 1.05;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+
+h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 20px;
+  letter-spacing: -0.015em;
+  margin-bottom: 14px;
+  margin-top: 32px;
+  color: var(--text);
+}
+h3:first-child { margin-top: 0; }
+
+p { margin-bottom: 1em; }
+p.body { max-width: 70ch; color: #2a2a2a; }
+
+/* ════ KPI ═══════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-top: 28px;
+}
+.kpi {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 28px 26px;
+  position: relative;
+  transition: border-color 0.2s;
+}
+.kpi:hover { border-color: var(--accent); }
+.kpi.primary {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  border-color: var(--peppol-red);
+}
+.kpi.primary .label { color: rgba(255,255,255,0.7); }
+.kpi.primary .value { color: var(--peppol-white); }
+.kpi.primary .detail { color: rgba(255,255,255,0.85); }
+
+.kpi.alert {
+  background: var(--peppol-black);
+  color: var(--peppol-white);
+  border-color: var(--peppol-black);
+}
+.kpi.alert .label { color: rgba(255,255,255,0.6); }
+.kpi.alert .value { color: var(--peppol-r400); }
+.kpi.alert .detail { color: rgba(255,255,255,0.75); }
+
+.kpi .label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+.kpi .value {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 60px;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--stat-big);
+  font-feature-settings: "tnum" 1;
+}
+.kpi .detail {
+  margin-top: 14px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #444;
+}
+.kpi .detail strong { color: inherit; font-weight: 600; }
+
+/* ════ CALLOUT ═══════════════════════════════════════ */
+.callout {
+  margin: 40px 0;
+  padding: 28px 32px 28px 32px;
+  background: var(--card);
+  border-left: 4px solid var(--accent);
+  position: relative;
+}
+.callout .quote-mark {
+  font-family: var(--font-sans);
+  font-size: 40px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 0.5;
+  margin-bottom: 4px;
+}
+.callout p {
+  font-size: 19px;
+  line-height: 1.45;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text);
+}
+.callout p strong { color: var(--title); font-weight: 600; }
+.callout p em { font-style: italic; color: var(--text-muted); }
+
+/* ════ DOCTYPE TABLE ═════════════════════════════════ */
+.doctype-table {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+}
+.doctype-table-header {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  padding: 14px 20px;
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) 110px 1fr 90px;
+  gap: 24px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.doctype-table-header .right { text-align: right; }
+.doctype-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.5fr) 110px 1fr 90px;
+  align-items: center;
+  gap: 24px;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  transition: background 0.15s;
+}
+.doctype-row:last-child { border-bottom: none; }
+.doctype-row:nth-child(even) { background: var(--card); }
+.doctype-row:hover { background: var(--peppol-r200); }
+
+.doctype-row .name {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.doctype-row .name small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-weight: 400;
+  margin-top: 4px;
+  letter-spacing: 0;
+}
+.doctype-row .count {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+  font-feature-settings: "tnum" 1;
+  color: var(--text);
+}
+.doctype-row .bar-wrap {
+  height: 10px;
+  background: var(--peppol-gray-light);
+  position: relative;
+  overflow: hidden;
+}
+.doctype-row .bar {
+  height: 100%;
+  background: var(--text);
+  transition: width 0.3s;
+}
+.doctype-row.ext .bar { background: var(--accent); }
+.doctype-row.bis .bar { background: var(--text-light); }
+.doctype-row.factx .bar { background: var(--peppol-r700); }
+.doctype-row.cdar .bar { background: var(--peppol-r800); }
+.doctype-row .pct {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: right;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.doctype-row.ext .pct { color: var(--accent); font-weight: 600; }
+
+/* ════ COMPARE BLOCK ═════════════════════════════════ */
+.compare-block {
+  margin-top: 28px;
+}
+
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.profile-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 28px;
+  position: relative;
+}
+
+.profile-card .tag {
+  display: inline-block;
+  padding: 4px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 500;
+  margin-bottom: 18px;
+}
+
+.profile-card.minimal {
+  border-color: var(--border);
+}
+.profile-card.minimal .tag {
+  background: var(--peppol-black);
+  color: var(--peppol-white);
+}
+
+.profile-card.full {
+  border-color: var(--peppol-red);
+  background: var(--card);
+}
+.profile-card.full .tag {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+}
+
+.profile-card h4 {
+  font-family: var(--font-sans);
+  font-size: 24px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 6px;
+}
+.profile-card .meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  margin-bottom: 22px;
+}
+.profile-card ul {
+  list-style: none;
+  padding: 0;
+}
+.profile-card ul li {
+  padding: 9px 0;
+  padding-left: 26px;
+  position: relative;
+  font-size: 14px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+.profile-card ul li:last-child { border-bottom: none; }
+
+.profile-card ul li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 11px;
+  width: 16px;
+  height: 16px;
+  background: var(--peppol-red);
+  display: flex;
+}
+.profile-card ul li::after {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 14px;
+  width: 5px;
+  height: 9px;
+  border-right: 2px solid var(--peppol-white);
+  border-bottom: 2px solid var(--peppol-white);
+  transform: rotate(45deg);
+}
+.profile-card.minimal ul li.missing {
+  color: var(--text-muted);
+  text-decoration: line-through;
+  text-decoration-color: var(--accent);
+  text-decoration-thickness: 1.5px;
+}
+.profile-card.minimal ul li.missing::before {
+  background: var(--peppol-r200);
+}
+.profile-card.minimal ul li.missing::after {
+  content: "×";
+  position: absolute;
+  left: 3px;
+  top: 9px;
+  width: auto;
+  height: auto;
+  border: none;
+  transform: none;
+  color: var(--peppol-red-dark);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+}
+.profile-card .footer {
+  margin-top: 22px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  line-height: 1.5;
+  color: #444;
+}
+
+/* ════ EVIDENCE COLUMNS ══════════════════════════════ */
+.evidence {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.evidence-col {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 24px 26px;
+}
+.evidence-col h4 {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.evidence-col .head {
+  font-family: var(--font-sans);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  margin-bottom: 18px;
+}
+.evidence-col.cius-col { border-top: 4px solid var(--peppol-black); }
+.evidence-col.cius-col .head { color: var(--peppol-black); }
+.evidence-col.ext-col { border-top: 4px solid var(--peppol-red); }
+.evidence-col.ext-col .head { color: var(--peppol-red); }
+
+.evidence-col ol {
+  padding-left: 0;
+  list-style: none;
+  counter-reset: ev;
+}
+.evidence-col ol li {
+  padding: 8px 0 8px 32px;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  counter-increment: ev;
+}
+.evidence-col ol li::before {
+  content: counter(ev, decimal-leading-zero);
+  position: absolute;
+  left: 0;
+  top: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--accent);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+.evidence-col ol li:last-child { border-bottom: none; }
+.evidence-col .note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--text-muted);
+  font-style: italic;
+  line-height: 1.5;
+}
+
+/* ════ SIGNATURE TABLE ═══════════════════════════════ */
+.sig-table {
+  margin-top: 20px;
+  border: 1px solid var(--border);
+}
+.sig-row {
+  display: grid;
+  grid-template-columns: 70px 1fr 80px;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.sig-row:nth-child(even) { background: var(--card); }
+.sig-row:last-child { border-bottom: none; }
+.sig-row .count {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-align: right;
+  font-size: 14px;
+  font-feature-settings: "tnum" 1;
+}
+.sig-row .sig {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.sig-row .sig .tok {
+  display: inline-block;
+  padding: 3px 8px;
+  background: var(--bg);
+  border: 1px solid var(--text-muted);
+  color: var(--text);
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+.sig-row .sig .tok.ext {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  border-color: var(--peppol-red);
+}
+.sig-row .pct {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  font-weight: 500;
+}
+
+/* ════ GLOSSARY ══════════════════════════════════════ */
+.glossary {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.gloss-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  padding: 22px 24px;
+  transition: border-color 0.2s;
+}
+.gloss-card:hover { border-color: var(--accent); }
+.gloss-card .term {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -0.015em;
+  color: var(--title);
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.gloss-card .term .abbr {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  padding: 2px 7px;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+.gloss-card .def {
+  font-size: 14px;
+  line-height: 1.55;
+  color: #2a2a2a;
+}
+.gloss-card .def code,
+.gloss-card .def .mono {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  background: var(--card);
+  padding: 1px 5px;
+  color: var(--text);
+  letter-spacing: 0;
+}
+.gloss-card .def em { font-style: italic; color: var(--text-muted); }
+.gloss-card .def strong { font-weight: 600; color: var(--text); }
+
+/* ════ METHOD ════════════════════════════════════════ */
+.method {
+  background: var(--peppol-black);
+  color: var(--peppol-white);
+  padding: 44px 48px;
+  margin-top: 64px;
+}
+.method h3 {
+  color: var(--peppol-white);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 0;
+}
+.method h3::before {
+  content: "";
+  display: block;
+  width: 24px;
+  height: 4px;
+  background: var(--peppol-red);
+}
+.method p { color: rgba(255,255,255,0.88); font-size: 14px; line-height: 1.6; }
+.method strong { color: var(--peppol-white); font-weight: 600; }
+.method code {
+  font-family: var(--font-mono);
+  background: rgba(255,255,255,0.08);
+  padding: 2px 6px;
+  border-radius: 2px;
+  font-size: 12px;
+  color: var(--peppol-r300);
+}
+.method pre {
+  background: rgba(255,255,255,0.05);
+  padding: 16px 20px;
+  margin: 18px 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.6;
+  overflow-x: auto;
+  border-left: 3px solid var(--peppol-red);
+  word-break: break-all;
+  white-space: pre-wrap;
+  color: var(--peppol-r200);
+}
+.method a {
+  color: var(--peppol-r300);
+  text-decoration: none;
+  border-bottom: 1px solid var(--peppol-red);
+}
+.method ul {
+  padding-left: 0;
+  list-style: none;
+  margin: 12px 0;
+}
+.method ul li {
+  padding: 6px 0 6px 22px;
+  position: relative;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: rgba(255,255,255,0.85);
+}
+.method ul li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 13px;
+  width: 12px;
+  height: 1px;
+  background: var(--peppol-red);
+}
+
+/* ════ COLOPHON ══════════════════════════════════════ */
+.colophon {
+  margin-top: 64px;
+  padding: 32px 0 0;
+  border-top: 1px solid var(--border);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.colophon .right { text-align: right; }
+.colophon a {
+  color: var(--text);
+  text-decoration: none;
+  border-bottom: 1px solid var(--accent);
+}
+.colophon .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.colophon .brand .peppol-mini {
+  display: inline-flex;
+  align-items: center;
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  padding: 3px 7px;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0;
+}
+
+@media (max-width: 800px) {
+  .frame { padding: 0 20px 64px; }
+  .masthead { padding: 16px 0; grid-template-columns: auto auto; }
+  .masthead .meta { display: none; }
+  .hero { padding: 56px 0 40px; }
+  .kpi-grid { grid-template-columns: 1fr; }
+  .compare-grid { grid-template-columns: 1fr; }
+  .evidence { grid-template-columns: 1fr; }
+  .section-header { gap: 14px; }
+  .section-number { width: 44px; height: 44px; font-size: 16px; }
+  .doctype-table-header,
+  .doctype-row {
+    grid-template-columns: 1fr 80px;
+    grid-template-areas: "name count" "bar bar" "pct pct";
+    gap: 8px;
+  }
+  .doctype-table-header { display: none; }
+  .doctype-row .name { grid-area: name; }
+  .doctype-row .count { grid-area: count; }
+  .doctype-row .bar-wrap { grid-area: bar; }
+  .doctype-row .pct { grid-area: pct; text-align: left; }
+  .method { padding: 28px 24px; }
+  .byline { gap: 12px; flex-direction: column; }
+  .colophon { grid-template-columns: 1fr; }
+  .colophon .right { text-align: left; }
+  .glossary { grid-template-columns: 1fr; }
+}
+
+
+/* ════════ PRINT OVERRIDES (must come last) ════════ */
+@media print {
+  body { font-size: 10.5pt; }
+
+  .masthead { position: static !important; }
+  body::before { display: none !important; }
+
+  /* Tighter sections */
+  .section { margin-top: 36px; }
+  .hero { padding: 32px 0 24px; }
+
+  /* Hero title — fits A4 */
+  h1.title { font-size: 36pt; line-height: 1.0; }
+  .lede { font-size: 12pt; line-height: 1.4; margin-top: 18px; }
+
+  /* Section titles compact */
+  h2 { font-size: 20pt; }
+  h3 { font-size: 13pt; margin-top: 20px; }
+
+  /* KPI grid — fix the overflow with flex layout */
+  .kpi-grid {
+    display: flex;
+    gap: 8px;
+    margin-top: 18px;
+  }
+  .kpi {
+    flex: 1 1 0;
+    min-width: 0;
+    overflow: hidden;
+    padding: 16px 14px;
+  }
+  .kpi .value {
+    font-size: 22pt;
+    letter-spacing: -0.04em;
+    white-space: nowrap;
+  }
+  .kpi .label { font-size: 8pt; margin-bottom: 10px; }
+  .kpi .detail { font-size: 9pt; margin-top: 8px; }
+
+  /* Masthead — prevent date wrap */
+  .masthead .right { white-space: nowrap; }
+
+  /* Doctype table — fit A4 with bar visible */
+  .doctype-table-header,
+  .doctype-row {
+    grid-template-columns: minmax(180px, 1.6fr) 90px 1fr 60px;
+    gap: 14px;
+    padding: 11px 14px;
+  }
+  .doctype-row .name { font-size: 11pt; }
+  .doctype-row .name small { font-size: 8pt; }
+  .doctype-row .count { font-size: 11pt; }
+  .doctype-row .pct { font-size: 9pt; }
+  .doctype-row .bar-wrap { height: 8px; }
+
+  /* Compare cards */
+  .compare-grid { gap: 10px; }
+  .profile-card { padding: 18px 20px; }
+  .profile-card h4 { font-size: 16pt; }
+  .profile-card ul li { padding: 6px 0 6px 22px; font-size: 10pt; }
+  .profile-card .footer { font-size: 9.5pt; margin-top: 14px; padding-top: 10px; }
+
+  /* Evidence — equal column widths */
+  .evidence { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .evidence-col { padding: 16px 18px; }
+  .evidence-col .head { font-size: 15pt; margin-bottom: 12px; }
+  .evidence-col ol li { font-size: 10pt; padding: 6px 0 6px 30px; }
+
+  /* Sig table */
+  .sig-row { padding: 10px 14px; }
+
+  /* Glossary */
+  .glossary { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .gloss-card { padding: 16px 18px; }
+  .gloss-card .term { font-size: 13pt; margin-bottom: 8px; }
+  .gloss-card .def { font-size: 9.5pt; line-height: 1.45; }
+
+  /* Callout */
+  .callout { padding: 18px 22px; margin: 20px 0; }
+  .callout p { font-size: 12pt; line-height: 1.4; }
+  .callout .quote-mark { font-size: 30pt; margin-bottom: 2px; }
+
+  /* Method */
+  .method { padding: 26px 32px; margin-top: 36px; }
+  .method p { font-size: 10pt; }
+  .method ul li { font-size: 9.5pt; }
+  .method pre { font-size: 8.5pt; line-height: 1.45; }
+
+  /* Section header */
+  .section-number { width: 44px; height: 44px; font-size: 16pt; }
+  .section-eyebrow { font-size: 8.5pt; }
+  .section-header { margin-bottom: 24px; gap: 16px; }
+
+  /* Hero label */
+  .hero .label { font-size: 8.5pt; }
+  .byline { font-size: 8pt; gap: 18px; margin-top: 24px; }
+
+  /* Colophon */
+  .colophon {
+    font-size: 9pt;
+    margin-top: 36px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+}
+</style>
+</head>
+<body>
+<div class="frame">
+
+<!-- ════ MASTHEAD ════════════════════════════════════ -->
+<header class="masthead">
+  <div class="peppol-block">@Sandjab</div>
+  <div class="meta">Rapport d'observation · PEPPOL France</div>
+  <div class="right">Publié le {{ production_date_short }}</div>
+</header>
+
+<!-- ════ HERO ════════════════════════════════════════ -->
+<section class="hero">
+  <div class="label">Adoption observée · Réseau Peppol · directory.peppol.eu</div>
+  <h1 class="title">
+    Le profil <span class="accent-word">EXTENDED-CTC-FR</span> n'est déclaré que par <span class="underline">{{ ratio_extension_round }}&nbsp;%</span> des participants français.
+  </h1>
+  <p class="lede">
+    Sur les <strong>{{ counts.ubl_cius.fr|fr_int }} participants Peppol immatriculés en France</strong> qui supportent le profil <strong>CIUS</strong> en UBL, seuls <strong>{{ counts.ubl_ext.fr|fr_int }}</strong> déclarent également le profil étendu <strong>EXTENDED-CTC-FR</strong>. Un écart de {{ gap|fr_int }} participants — soit <strong>{{ noncompliance_pct }}&nbsp;%</strong> du périmètre — pour un profil pourtant inscrit au socle minimal de la norme XP&nbsp;Z12-012.
+  </p>
+  <div class="byline">
+    <span>Source : Peppol Directory REST API</span>
+    <span>Méthode : Comptage exhaustif via /search/1.0/json</span>
+    <span>Périmètre : country=FR</span>
+  </div>
+</section>
+
+<!-- ════ SECTION 01 ═════════════════════════════════════ -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">01</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Volumes constatés</div>
+      <h2>Comptage par type de document</h2>
+    </div>
+  </div>
+
+  <p class="body">Chaque ligne correspond à un identifiant <code style="font-family:var(--font-mono);font-size:13px;background:var(--card);padding:2px 6px;">doctype</code> Peppol. La requête a été exécutée le {{ production_date_short }} avec filtre <code style="font-family:var(--font-mono);font-size:13px;background:var(--card);padding:2px 6px;">country=FR</code> sur l'API publique <code style="font-family:var(--font-mono);font-size:13px;background:var(--card);padding:2px 6px;">directory.peppol.eu/search/1.0</code>. Le total mondial figure entre parenthèses : il diffère du chiffre France de moins de 0,01&nbsp;%, ces profils étant par construction français.</p>
+
+  <div class="doctype-table">
+    <div class="doctype-table-header">
+      <div>Type de document</div>
+      <div class="right">Participants</div>
+      <div>Adoption</div>
+      <div class="right">Ratio</div>
+    </div>
+
+    <div class="doctype-row bis">
+      <div class="name">Peppol BIS Billing 3.0 (UBL)
+        <small>urn:fdc:peppol.eu:2017:poacc:billing:3.0</small>
+      </div>
+      <div class="count">{{ counts.bis_billing.world|fr_int }}</div>
+      <div class="bar-wrap"><div class="bar" style="width:100%"></div></div>
+      <div class="pct">monde</div>
+    </div>
+
+    <div class="doctype-row cdar">
+      <div class="name">France CDAR — statuts de cycle de vie
+        <small>urn:peppol:france:billing:cdv:1.0</small>
+      </div>
+      <div class="count">{{ counts.cdar.fr|fr_int }}<sup style="font-family:var(--font-mono);font-size:9px;color:var(--accent);">†</sup></div>
+      <div class="bar-wrap"><div class="bar" style="width:100%"></div></div>
+      <div class="pct">100&nbsp;%</div>
+    </div>
+
+    <div class="doctype-row">
+      <div class="name">France CII Invoice CIUS
+        <small>urn:peppol:france:billing:cius:1.0 · CII D22B</small>
+      </div>
+      <div class="count">{{ counts.cii_cius.fr|fr_int }}</div>
+      <div class="bar-wrap"><div class="bar" style="width:{{ doctype_bars.cii_cius.bar_width }}%"></div></div>
+      <div class="pct">{{ doctype_bars.cii_cius.ratio_label }}</div>
+    </div>
+
+    <div class="doctype-row">
+      <div class="name">France UBL Invoice CIUS
+        <small>urn:peppol:france:billing:cius:1.0 · UBL 2.1</small>
+      </div>
+      <div class="count">{{ counts.ubl_cius.fr|fr_int }}</div>
+      <div class="bar-wrap"><div class="bar" style="width:{{ doctype_bars.ubl_cius.bar_width }}%"></div></div>
+      <div class="pct">{{ doctype_bars.ubl_cius.ratio_label }}</div>
+    </div>
+
+    <div class="doctype-row factx">
+      <div class="name">France Factur-X
+        <small>urn:peppol:france:billing:Factur-X:1.0 · PDF/A-3 + CII</small>
+      </div>
+      <div class="count">{{ counts.facturx.fr|fr_int }}</div>
+      <div class="bar-wrap"><div class="bar" style="width:{{ doctype_bars.facturx.bar_width }}%"></div></div>
+      <div class="pct">{{ doctype_bars.facturx.ratio_label }}</div>
+    </div>
+
+    <div class="doctype-row ext">
+      <div class="name">France UBL Invoice <strong style="color:var(--accent)">EXTENDED-CTC-FR</strong>
+        <small>urn:peppol:france:billing:extended:1.0 · UBL 2.1</small>
+      </div>
+      <div class="count">{{ counts.ubl_ext.fr|fr_int }}</div>
+      <div class="bar-wrap"><div class="bar" style="width:{{ doctype_bars.ubl_ext.bar_width }}%"></div></div>
+      <div class="pct">{{ doctype_bars.ubl_ext.ratio_label }}</div>
+    </div>
+
+    <div class="doctype-row ext">
+      <div class="name">France CII Invoice <strong style="color:var(--accent)">EXTENDED-CTC-FR</strong>
+        <small>urn:peppol:france:billing:extended:1.0 · CII D22B</small>
+      </div>
+      <div class="count">{{ counts.cii_ext.fr|fr_int }}</div>
+      <div class="bar-wrap"><div class="bar" style="width:{{ doctype_bars.cii_ext.bar_width }}%"></div></div>
+      <div class="pct">{{ doctype_bars.cii_ext.ratio_label }}</div>
+    </div>
+  </div>
+
+  <p class="body" style="margin-top:24px;font-size:14px;color:var(--text-muted);"><em>Lecture :</em> la barre est exprimée en proportion du plus gros volume France (CIUS UBL = base 100&nbsp;%). Peppol BIS Billing 3.0 est donné à titre de référence mondiale — il est l'épine dorsale du réseau Peppol toutes juridictions confondues.</p>
+
+  <p class="body" style="margin-top:8px;font-size:13px;color:var(--text-muted);"><sup style="color:var(--accent);">†</sup> <strong>CDAR&nbsp;:</strong> le compte brut excède de ~{{ cdar_excess|fr_int }} unités (≈&nbsp;{{ cdar_excess_pct }}&nbsp;%) le volume CIUS Invoice, écart attribuable à trois facteurs cumulés et marginaux&nbsp;: (a) participants ayant déclaré CreditNote France CIUS sans Invoice France CIUS, (b) décalages temporaires d'indexation du Directory (asynchrone), (c) entités disposant de plusieurs identifiants Peppol via des schemes distincts (0009 SIRET legacy vs 0225 FRCTC). Cet écart n'affecte pas l'analyse principale du rapport.</p>
+</section>
+
+<!-- ════ SECTION 02 ═════════════════════════════════════ -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">02</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Constat principal</div>
+      <h2>Une fracture nette entre deux configurations de PA</h2>
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi">
+      <div class="label">Périmètre observé</div>
+      <div class="value">{{ counts.ubl_cius.fr|fr_int }}</div>
+      <div class="detail">participants Peppol France ayant déclaré au moins le profil <strong>UBL&nbsp;CIUS</strong> dans leur SMP.</div>
+    </div>
+    <div class="kpi primary">
+      <div class="label">Adoption Extension</div>
+      <div class="value">{{ ratio_extension_pct }}&nbsp;%</div>
+      <div class="detail">soit <strong>{{ counts.ubl_ext.fr|fr_int }} participants</strong> déclarant aussi UBL EXTENDED-CTC-FR. Le ratio CII Extension est strictement identique à 0,07&nbsp;point près.</div>
+    </div>
+    <div class="kpi alert">
+      <div class="label">Écart de conformité</div>
+      <div class="value">{{ gap|fr_int }}</div>
+      <div class="detail">participants français supportent CIUS mais <strong>ne déclarent pas</strong> EXTENDED-CTC-FR — alors que le socle XP&nbsp;Z12-012 l'inclut.</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <div class="quote-mark">"</div>
+    <p>L'écart n'est pas marginal. Il représente <strong>près des deux tiers</strong> du périmètre français de Peppol et concerne les cas d'usage que seul EXTENDED-CTC-FR adresse&nbsp;: <em>factures multi-vendeurs, sous-lignes structurées, règles TVA complémentaires</em>.</p>
+  </div>
+</section>
+
+<!-- ════ SECTION 03 ═════════════════════════════════════ -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">03</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Deux configurations dominantes</div>
+      <h2>Profil « minimaliste » contre profil « socle complet »</h2>
+    </div>
+  </div>
+
+  <p class="body">L'analyse d'un échantillon de 2&nbsp;000 participants (1&nbsp;000 par cohorte) révèle que les PA opèrent selon deux templates de déclaration tranchés. Quasiment aucun cas intermédiaire&nbsp;: soit toute la palette est déclarée, soit Extension est absent.</p>
+
+  <div class="compare-block">
+    <h3>Templates dominants observés</h3>
+    <div class="compare-grid">
+
+      <div class="profile-card minimal">
+        <span class="tag">Minimaliste · ≈&nbsp;63&nbsp;%</span>
+        <h4>Palette CIUS only</h4>
+        <div class="meta">~{{ gap|fr_int }} participants FR · 6 doctypes</div>
+        <ul>
+          <li>Peppol BIS Billing 3.0 · UBL</li>
+          <li>Peppol BIS Credit Note · UBL</li>
+          <li>France UBL Invoice CIUS</li>
+          <li>France CII Invoice CIUS</li>
+          <li>France Factur-X</li>
+          <li>France CDAR (statuts)</li>
+          <li class="missing">France UBL Invoice EXTENDED-CTC-FR</li>
+          <li class="missing">France CII Invoice EXTENDED-CTC-FR</li>
+        </ul>
+        <div class="footer">Typique des PA orientées TPE / EI / micro-entreprise. Couvre les factures simples du quotidien B2B mais exclut les cas multi-vendeurs et sous-lignes structurées.</div>
+      </div>
+
+      <div class="profile-card full">
+        <span class="tag">Socle complet · ≈&nbsp;37&nbsp;%</span>
+        <h4>Palette CIUS + EXTENDED</h4>
+        <div class="meta">~{{ counts.ubl_ext.fr|fr_int }} participants FR · 8 doctypes</div>
+        <ul>
+          <li>Peppol BIS Billing 3.0 · UBL</li>
+          <li>Peppol BIS Credit Note · UBL</li>
+          <li>France UBL Invoice CIUS</li>
+          <li>France CII Invoice CIUS</li>
+          <li>France Factur-X</li>
+          <li>France CDAR (statuts)</li>
+          <li>France UBL Invoice EXTENDED-CTC-FR</li>
+          <li>France CII Invoice EXTENDED-CTC-FR</li>
+        </ul>
+        <div class="footer">Configuration conforme à la lettre du socle XP&nbsp;Z12-012. Adoptée par les PA orientées ETI / GE et les éditeurs B2B historiques (EDICOM et autres).</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Signatures de doctypes — échantillon de {{ cohort_cius.sample_size|fr_int }} sur {{ counts.ubl_cius.fr|fr_int }} participants CIUS</h3>
+  <div class="sig-table">
+{%- for sig in cohort_cius.signatures %}
+    <div class="sig-row">
+      <div class="count">{{ sig.count }}</div>
+      <div class="sig"{% if sig.is_residual %} style="font-style:italic;color:var(--text-muted)"{% endif %}>
+{%- if sig.is_residual %}{{ sig.label }}{% else %}{% for tok in sig.tokens %}<span class="tok{% if tok in cohort_cius.ext_tokens %} ext{% endif %}">{{ tok }}</span>{% endfor %}{% endif %}
+      </div>
+      <div class="pct">{{ sig.pct_fr }}&nbsp;%</div>
+    </div>
+{%- endfor %}
+  </div>
+
+  <h3>Signatures de doctypes — échantillon de {{ cohort_ext.sample_size|fr_int }} sur {{ counts.ubl_ext.fr|fr_int }} participants Extension</h3>
+  <div class="sig-table">
+{%- for sig in cohort_ext.signatures %}
+    <div class="sig-row">
+      <div class="count">{{ sig.count }}</div>
+      <div class="sig"{% if sig.is_residual %} style="font-style:italic;color:var(--text-muted)"{% endif %}>
+{%- if sig.is_residual %}{{ sig.label }}{% else %}{% for tok in sig.tokens %}<span class="tok{% if tok in cohort_ext.ext_tokens %} ext{% endif %}">{{ tok }}</span>{% endfor %}{% endif %}
+      </div>
+      <div class="pct">{{ sig.pct_fr }}&nbsp;%</div>
+    </div>
+{%- endfor %}
+  </div>
+</section>
+
+<!-- ════ SECTION 04 ═════════════════════════════════════ -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">04</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Indices terrain</div>
+      <h2>Qui est de quel côté&nbsp;?</h2>
+    </div>
+  </div>
+
+  <p class="body">L'examen des noms d'entités dans chaque échantillon révèle une corrélation forte avec la taille des entreprises&nbsp;: les TPE / EI / artisans sont massivement représentés dans le groupe sans Extension, tandis que le groupe avec Extension penche nettement vers les ETI et grandes entreprises.</p>
+
+  <div class="evidence">
+    <div class="evidence-col cius-col">
+      <h4>Sample sans EXTENDED-CTC-FR</h4>
+      <div class="head">PA orientées TPE / EI</div>
+      <ol>
+{%- for name in names_cius %}
+        <li>{{ name|nbsp }}</li>
+{%- endfor %}
+      </ol>
+      <p class="note">Pattern typique&nbsp;: noms commençant par «&nbsp;EI&nbsp;-&nbsp;», sigles courts d'artisans, microcommerces. Cohérent avec une cible de PA mass-market type fintech / banque en ligne.</p>
+    </div>
+    <div class="evidence-col ext-col">
+      <h4>Sample avec EXTENDED-CTC-FR</h4>
+      <div class="head">PA orientées ETI / GE</div>
+      <ol>
+{%- for name in names_ext %}
+        <li>{{ name|nbsp }}</li>
+{%- endfor %}
+      </ol>
+      <p class="note">Pattern typique&nbsp;: groupes industriels, sociétés à entités multiples, raisons sociales en SA/SAS. EDICOM est un éditeur B2B historique reconnu pour son support complet des profils.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ════ SECTION 05 ═════════════════════════════════════ -->
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">05</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Lecture</div>
+      <h2>Ce que ces chiffres disent — et ce qu'ils ne disent pas</h2>
+    </div>
+  </div>
+
+  <h3>Ce qu'ils disent</h3>
+  <p class="body">Le marché français Peppol s'est structuré autour d'une <strong>palette de base de facto</strong> qui omet EXTENDED-CTC-FR. Cette palette de base correspond à 6 doctypes&nbsp;: BIS Billing 3.0, BIS Credit Note, France UBL CIUS, France CII CIUS, France Factur-X, France CDAR. C'est la palette dans laquelle se reconnaîtra la majorité des participants Peppol gérés par des PA orientées TPE.</p>
+
+  <h3>Ce qu'ils ne disent pas</h3>
+  <p class="body">L'absence de déclaration d'EXTENDED-CTC-FR dans le SMP <em>ne signifie pas</em> que la PA est incapable de traiter ce profil. Elle signifie qu'elle ne s'engage pas à le recevoir <em>via le routage Peppol</em> pour ses participants. Une PA pourrait très bien traiter EXTENDED-CTC-FR via d'autres canaux d'interopérabilité, ou choisir de ne pas l'exposer publiquement.</p>
+
+  <p class="body">Cependant, le <a href="https://openpeppol.atlassian.net/wiki/download/attachments/2889318401/France%20-%20Peppol%20Authority%20Specific%20Requirements_2026.02.27.pdf?api=v2" target="_blank" style="color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent);"><strong>PASR PEPPOL France du 27 février 2026</strong></a> (§7, <em>Service Provider Accreditation</em>) impose explicitement à toute PA de déclarer dans le SMP les capacités de réception de tous les formats listés au §6 sous le scheme 0225. Ce §6 nomme explicitement <em>UBL EN16931 France EXTENDED-CTC-FR</em> et <em>UN/CEFACT EN16931 EXTENDED-CTC-FR</em> parmi les formats obligatoires.</p>
+
+  <div class="callout">
+    <div class="quote-mark">"</div>
+    <p>À la lettre du texte, le constat empirique ci-dessus s'apparente à un <strong>constat de non-conformité PASR à grande échelle</strong>, concernant près de {{ gap|fr_int }} participants français. Cette photographie reflète l'état du Peppol Directory <strong>au {{ production_date_short }}</strong>&nbsp;; les PA peuvent mettre à jour leurs déclarations SMP à tout moment, et ce niveau peut être résorbé rapidement à l'approche de l'échéance du <strong>1<sup>er</sup> septembre 2026</strong>.</p>
+  </div>
+</section>
+
+<!-- ════ SECTION 06 — GLOSSAIRE ═════════════════════════ -->
+<section class="section page-break">
+  <div class="section-header">
+    <div class="section-number">06</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Glossaire</div>
+      <h2>Vocabulaire utilisé dans ce rapport</h2>
+    </div>
+  </div>
+
+  <p class="body">Les termes Peppol et facturation électronique se chevauchent et sont souvent employés indifféremment dans le marché alors qu'ils désignent des objets techniques distincts. Définitions opérationnelles ci-dessous, dans l'ordre où ils apparaissent dans le rapport.</p>
+
+  <div class="glossary">
+
+    <div class="gloss-card">
+      <div class="term">Participant <span class="abbr">Peppol</span></div>
+      <div class="def">
+        Une <strong>boîte aux lettres</strong> sur le réseau Peppol, identifiée par un couple <code>scheme:valeur</code> — par exemple <code>0225:931153688</code>. Ce n'est pas l'entreprise mais son <em>adresse de réception</em>. Une même entreprise peut posséder plusieurs participants (un par scheme, ou un par établissement&nbsp;: SIRET vs SIREN, FRCTC vs legacy). Le compteur du Peppol Directory dénombre des participants, pas des entreprises. Les chiffres de ce rapport sont donc à lire comme <em>volumes de boîtes aux lettres déclarées</em>, pas comme volumes d'entreprises.
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">PA <span class="abbr">ex-PDP</span></div>
+      <div class="def">
+        <strong>Plateforme Agréée</strong>, anciennement Plateforme de Dématérialisation Partenaire. Opérateur privé immatriculé par la DGFiP pour servir d'intermédiaire entre une entreprise et le réseau de facturation électronique français. Émet, reçoit, route et archive les factures et les statuts de cycle de vie au nom de ses clients. Sur Peppol, une PA opère un ou plusieurs <em>Access Points</em> et publie les capacités de ses clients dans un <em>SMP</em>.
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">Type de document <span class="abbr">doctype</span></div>
+      <div class="def">
+        Identifiant URN qui combine un <strong>schéma XML</strong> (UBL Invoice, CII, etc.) et un <strong>profil métier</strong> (CIUS, EXTENDED-CTC-FR, etc.). C'est le grain de routage de Peppol&nbsp;: quand un émetteur veut envoyer un document à un participant, il consulte le SMP du destinataire pour vérifier que ce doctype précis est accepté. Si non déclaré, le document est rejeté avant même d'arriver.
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">Profil <span class="abbr">CIUS / EXTENDED</span></div>
+      <div class="def">
+        Spécification métier qui <strong>restreint</strong> ou <strong>étend</strong> la norme européenne EN16931. Le <em>CIUS</em> (Core Invoice Usage Specification) est un sous-ensemble dit <code>compliant</code>&nbsp;: il n'ajoute rien à la norme, il en sélectionne le périmètre utile à un pays. L'<em>EXTENDED-CTC-FR</em> est dit <code>conformant</code>&nbsp;: il étend EN16931 avec des éléments métier non prévus par la norme (sous-lignes, multi-vendeurs, règles TVA additionnelles propres au CTC français).
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">SMP <span class="abbr">Service Metadata Publisher</span></div>
+      <div class="def">
+        <strong>Registre opéré par chaque PA</strong>, qui publie pour chacun de ses participants la liste des doctypes acceptés en réception. Le SMP est consulté à chaque envoi via DNS+HTTP pour résoudre l'<em>Access Point</em> destinataire et vérifier la compatibilité de formats. Ce que ce rapport mesure, ce sont précisément des <strong>déclarations SMP</strong> — pas des capacités techniques. Une PA peut techniquement supporter un profil sans le déclarer.
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">Annuaire Peppol <span class="abbr">Peppol Directory</span></div>
+      <div class="def">
+        Base de données indexant les <em>business cards</em> publiées par les SMPs (nom, adresse, doctypes, identifiants additionnels). Permet la <strong>recherche</strong> par nom, identifiant ou doctype via une UI publique et une API REST. La publication dans le Directory est <em>optionnelle</em>&nbsp;: un participant peut être routable sans y figurer. Source de ce rapport&nbsp;: <code>directory.peppol.eu</code>.
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">CDAR <span class="abbr">statut de facture</span></div>
+      <div class="def">
+        <strong>Cross Domain Acknowledgement And Response</strong>. Message de cycle de vie envoyé en réponse à une facture pour communiquer son statut côté destinataire&nbsp;: reçue, validée, refusée, en litige, payée, etc. Obligatoire dans le système français&nbsp;: les PA doivent supporter à la fois l'émission et la réception de CDAR pour acheminer les statuts entre émetteurs et destinataires.
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">FRCTC <span class="abbr">scheme 0225</span></div>
+      <div class="def">
+        <strong>France Continuous Transaction Controls</strong>. Scheme d'identifiant Peppol créé spécifiquement pour le système français&nbsp;: la valeur portée est un SIREN à 9 chiffres. Les adresses Peppol françaises pour la facturation B2B sont au format <code>0225:&lt;SIREN&gt;</code>. Ne pas confondre avec les schemes legacy <code>0009</code> (SIRET) ou <code>9957</code> (anciens identifiants français).
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">XP&nbsp;Z12-012 <span class="abbr">norme AFNOR</span></div>
+      <div class="def">
+        Norme française qui décrit le <strong>socle minimal</strong> que les PA doivent supporter&nbsp;: formats (Factur-X, UBL, CII), profils (EN16931 et EXTENDED-CTC-FR), contrôles à appliquer, transformations entre syntaxes. Publiée par l'AFNOR en février 2026 (téléchargeable gratuitement). Complétée par XP&nbsp;Z12-013 (API standard PA ↔ SI entreprise) et XP&nbsp;Z12-014 (44 cas d'usage B2B).
+      </div>
+    </div>
+
+    <div class="gloss-card">
+      <div class="term">Factur-X <span class="abbr">PDF/A-3 hybride</span></div>
+      <div class="def">
+        Format hybride <strong>PDF/A-3 contenant un XML CII embarqué</strong>. Le PDF est lisible humainement, le XML est exploitable automatiquement. Standard franco-allemand (ZUGFeRD côté allemand), couvert par la norme EN16931. Présent dans le socle minimal français — distinct des formats UBL et CII purs, mais formellement complémentaire.
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ════ MÉTHODE ════════════════════════════════════════ -->
+<section class="method page-break">
+  <h3>07 — Méthode &amp; reproductibilité</h3>
+  <p>Données extraites de l'API publique <strong>Peppol Directory</strong> opérée par OpenPeppol AISBL. Sept doctypes du périmètre français interrogés via endpoint <code>/search/1.0/json</code> avec paramètre <code>country=FR</code>, et croisés avec l'équivalent monde.</p>
+
+  <p style="margin-top:16px">URL d'interrogation pour France UBL Invoice EXTENDED-CTC-FR — reproductible immédiatement&nbsp;:</p>
+
+  <pre>https://directory.peppol.eu/search/1.0/json
+  ?doctype=busdox-docid-qns%3A%3Aurn%3Aoasis%3Anames%3Aspecification
+    %3Aubl%3Aschema%3Axsd%3AInvoice-2%3A%3AInvoice%23%23urn%3Acen.eu
+    %3Aen16931%3A2017%23conformant%23urn%3Apeppol%3Afrance%3Abilling
+    %3Aextended%3A1.0%3A%3A2.1
+  &amp;country=FR
+  &amp;rpc=1000</pre>
+
+  <p style="margin-top:16px">Limites connues&nbsp;:</p>
+  <ul>
+    <li>Le Directory plafonne les retours à 1&nbsp;000 résultats par requête. Les chiffres totaux proviennent du champ <code>total-result-count</code>, comptés côté serveur sur l'intégralité de l'index.</li>
+    <li>L'analyse de signatures de doctypes porte sur les 1&nbsp;000 premiers résultats de chaque cohorte. L'ordre de retour de l'API n'étant pas garanti, l'échantillon ne prétend pas être strictement représentatif — mais les ratios mesurés sont cohérents avec les totaux globaux.</li>
+    <li>Publication SMP optionnelle&nbsp;: un participant peut être routable sans figurer dans le Directory. Les chiffres reflètent donc la <em>déclaration publique</em>, pas nécessairement la <em>capacité technique réelle</em> des PA.</li>
+    <li>Le filtre <code>country=FR</code> filtre sur le pays de résidence légale de l'entité (champ <code>countryCode</code>), pas sur le scheme du participant Peppol. L'écart avec le total monde reste &lt;&nbsp;0,01&nbsp;% pour ces profils par construction franco-français.</li>
+    <li>Snapshot daté du <strong>{{ production_datetime_long }}</strong>. Indexation Directory asynchrone&nbsp;: variation possible de quelques pour-cent jour à jour.</li>
+  </ul>
+</section>
+
+<!-- ════ COLOPHON ═══════════════════════════════════════ -->
+<footer class="colophon">
+  <div>
+    <div class="brand"><span class="peppol-mini">@Sandjab</span> Rapport d'observation · PEPPOL France</div>
+    Rapport produit par <strong style="color:var(--text);font-weight:600;">{{ author_full }}</strong><br>
+    Date de production&nbsp;: {{ production_date_short }}<br>
+    Données &copy; OpenPeppol AISBL — <a href="https://directory.peppol.eu" target="_blank">directory.peppol.eu</a>
+  </div>
+  <div class="right">
+    Réforme Facture Électronique France · XP&nbsp;Z12-012<br>
+    Norme AFNOR · <a href="https://www.impots.gouv.fr/factures-norme-afnor" target="_blank">impots.gouv.fr</a><br>
+    PASR PEPPOL France 27 fév. 2026 · <a href="https://openpeppol.atlassian.net/wiki/download/attachments/2889318401/France%20-%20Peppol%20Authority%20Specific%20Requirements_2026.02.27.pdf?api=v2" target="_blank">openpeppol.atlassian.net</a>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
