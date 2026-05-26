@@ -69,6 +69,9 @@ DEFAULT_SAMPLE_SIZE = 1000
 SCHEME = "busdox-docid-qns"
 HISTORY_FILENAME = "peppol_history.json"
 
+HTTP_RETRY_ATTEMPTS = 3
+HTTP_RETRY_BACKOFF_S = (1.0, 2.0, 4.0)
+
 HTTP_PROXIES: dict[str, str] | None = None
 
 
@@ -165,10 +168,27 @@ def query_directory(urn: str, country: str | None, rpc: int = 1, rpi: int = 0) -
     url = f"{DIRECTORY_API_URL}?doctype={_encoded_doctype(urn)}&rpc={rpc}&rpi={rpi}"
     if country:
         url += f"&country={country}"
-    resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
-    if resp.status_code != 200:
-        raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
-    return resp.json()
+
+    log = logging.getLogger("peppol")
+    last_err: Exception | None = None
+    for attempt in range(HTTP_RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
+        except requests.RequestException as e:
+            last_err = e
+        else:
+            if resp.status_code == 200:
+                return resp.json()
+            # 5xx is transient (server hiccup), 4xx is on us — don't retry 4xx.
+            if resp.status_code < 500:
+                raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
+            last_err = RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
+        if attempt < HTTP_RETRY_ATTEMPTS - 1:
+            backoff = HTTP_RETRY_BACKOFF_S[min(attempt, len(HTTP_RETRY_BACKOFF_S) - 1)]
+            log.warning("Tentative %d/%d KO (%s) — retry dans %.1fs",
+                        attempt + 1, HTTP_RETRY_ATTEMPTS, last_err, backoff)
+            time.sleep(backoff)
+    raise last_err if last_err else RuntimeError(f"Échec inconnu sur {url[:120]}…")
 
 
 def fetch_count(urn: str, country: str | None = None) -> int:
