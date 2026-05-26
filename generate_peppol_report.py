@@ -341,10 +341,11 @@ def _y_ticks(vmin: float, vmax: float, target: int = 5) -> list[int]:
     if step == 0:
         step = 1
     start = (int(vmin) // step) * step
+    if start < vmin:
+        start += step
     ticks, v = [], start
-    while v <= vmax + step / 2:
-        if v >= vmin - step / 2:
-            ticks.append(v)
+    while v <= vmax:
+        ticks.append(v)
         v += step
     return ticks
 
@@ -875,14 +876,15 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)
     history = load_history(history_path)
-    today_key = date.today().isoformat()
+    today_d = datetime.now(PARIS_TZ).date()
+    today_key = today_d.isoformat()
     detailed_stats: dict | None = None
 
     # (c) Avertit si l'historique présente un gap avant aujourd'hui.
     if not args.no_api:
-        last_existing = closest_run_at_or_before(history, date.today() - timedelta(days=1))
+        last_existing = closest_run_at_or_before(history, today_d - timedelta(days=1))
         if last_existing is not None:
-            gap = (date.today() - last_existing).days
+            gap = (today_d - last_existing).days
             if gap > 1:
                 log.warning(
                     "Gap d'historique : dernier run = %s (il y a %d jours). "
