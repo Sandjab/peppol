@@ -73,7 +73,7 @@ python generate_peppol_report.py
 --no-pdf              HTML seulement (saute WeasyPrint)
 --no-api              Re-rend depuis l'historique existant sans interroger l'API
 --author              Nom complet affiché dans le colophon
---proxy               Proxy HTTP/HTTPS, format [scheme://][user:pass@]host[:port]
+--proxy               Proxy HTTP/HTTPS, format [scheme://]host[:port] (auth interactive)
 --verbose, -v         Logs détaillés
 ```
 
@@ -110,12 +110,20 @@ python generate_peppol_report.py --no-pdf
 
 **Derrière un proxy d'entreprise :**
 ```bash
-python generate_peppol_report.py --proxy user:pass@proxy.corp:8080
-# ou avec scheme explicite :
-python generate_peppol_report.py --proxy http://user:pass@proxy.corp:8080
+python generate_peppol_report.py --proxy proxy.corp:8080
+# le script demande user + password au prompt (password masqué)
+# laisser le user vide si le proxy ne demande pas d'authentification
 ```
-Si le mot de passe contient `@`, `:`, `/` ou d'autres caractères spéciaux,
-les URL-encoder (`%40`, `%3A`, `%2F`…).
+
+Pour un usage non-interactif (cron, CI) — passer les credentials via
+variables d'environnement, le prompt est alors sauté :
+```bash
+export PEPPOL_PROXY_USER=alice
+export PEPPOL_PROXY_PASS='s3cret!'
+python generate_peppol_report.py --proxy http://proxy.corp:8080
+```
+Les credentials sont URL-encodés automatiquement, pas besoin d'échapper
+les caractères spéciaux.
 
 ## Mode `--detailed` — note d'usage
 
