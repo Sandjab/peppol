@@ -64,6 +64,15 @@ DEFAULT_SAMPLE_SIZE = 1000
 SCHEME = "busdox-docid-qns"
 HISTORY_FILENAME = "peppol_history.json"
 
+HTTP_PROXIES: dict[str, str] | None = None
+
+
+def _normalize_proxy(raw: str) -> str:
+    raw = raw.strip()
+    if "://" not in raw:
+        raw = "http://" + raw
+    return raw
+
 DOCTYPES_FR: dict[str, dict[str, Any]] = {
     "ubl_cius": {
         "label": "France UBL Invoice CIUS",
@@ -130,7 +139,7 @@ def query_directory(urn: str, country: str | None, rpc: int = 1, rpi: int = 0) -
     url = f"{DIRECTORY_API_URL}?doctype={_encoded_doctype(urn)}&rpc={rpc}&rpi={rpi}"
     if country:
         url += f"&country={country}"
-    resp = requests.get(url, timeout=REQUEST_TIMEOUT_S)
+    resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
     if resp.status_code != 200:
         raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
     return resp.json()
@@ -762,6 +771,10 @@ def main() -> int:
     parser.add_argument("--no-api", action="store_true",
                         help="Re-rend depuis l'historique existant sans interroger l'API.")
     parser.add_argument("--author", default="@Sandjab")
+    parser.add_argument("--proxy", default=None,
+                        help="Proxy HTTP/HTTPS au format [scheme://][user:pass@]host[:port]. "
+                             "Ex : http://user:pass@proxy.corp:8080 ou user:pass@proxy.corp:8080. "
+                             "Appliqué à http:// et https://.")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -771,6 +784,17 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
     log = logging.getLogger("peppol")
+
+    if args.proxy:
+        proxy_url = _normalize_proxy(args.proxy)
+        global HTTP_PROXIES
+        HTTP_PROXIES = {"http": proxy_url, "https": proxy_url}
+        # Mask credentials for the log line.
+        masked = proxy_url
+        if "@" in masked:
+            scheme, _, rest = masked.partition("://")
+            masked = f"{scheme}://***@{rest.split('@', 1)[1]}"
+        log.info("Proxy actif : %s", masked)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)

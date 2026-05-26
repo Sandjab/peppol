@@ -73,6 +73,7 @@ python generate_peppol_report.py
 --no-pdf              HTML seulement (saute WeasyPrint)
 --no-api              Re-rend depuis l'historique existant sans interroger l'API
 --author              Nom complet affiché dans le colophon
+--proxy               Proxy HTTP/HTTPS, format [scheme://][user:pass@]host[:port]
 --verbose, -v         Logs détaillés
 ```
 
@@ -106,6 +107,15 @@ python generate_peppol_report.py --no-api
 ```bash
 python generate_peppol_report.py --no-pdf
 ```
+
+**Derrière un proxy d'entreprise :**
+```bash
+python generate_peppol_report.py --proxy user:pass@proxy.corp:8080
+# ou avec scheme explicite :
+python generate_peppol_report.py --proxy http://user:pass@proxy.corp:8080
+```
+Si le mot de passe contient `@`, `:`, `/` ou d'autres caractères spéciaux,
+les URL-encoder (`%40`, `%3A`, `%2F`…).
 
 ## Mode `--detailed` — note d'usage
 
