@@ -817,11 +817,21 @@ def main() -> int:
         password = os.environ.get("PEPPOL_PROXY_PASS", "")
         if not user and sys.stdin.isatty():
             user = input("Proxy user (vide si pas d'auth) : ").strip()
-        if user and not password:
+        if user and not password and sys.stdin.isatty():
             password = getpass.getpass("Proxy password : ")
+        if user and not password:
+            log.error(
+                "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
+                "non-interactif : abandon."
+            )
+            return 2
         proxy_url = _build_proxy_url(host_url, user, password)
         global HTTP_PROXIES
         HTTP_PROXIES = {"http": proxy_url, "https": proxy_url}
+        # Exporte aussi en env standard pour que WeasyPrint (fetch fonts/CSS
+        # via urllib) et tout sous-processus respectent le proxy.
+        os.environ["http_proxy"] = proxy_url
+        os.environ["https_proxy"] = proxy_url
         auth_state = f"avec auth ({user})" if user else "sans auth"
         log.info("Proxy actif : %s — %s", host_url, auth_state)
 
