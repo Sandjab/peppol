@@ -28,8 +28,10 @@ Auteur original du rapport : @Sandjab
 from __future__ import annotations
 
 import argparse
+import getpass
 import json
 import logging
+import os
 import sys
 import time
 import urllib.parse
@@ -63,6 +65,36 @@ REQUEST_TIMEOUT_S = 90
 DEFAULT_SAMPLE_SIZE = 1000
 SCHEME = "busdox-docid-qns"
 HISTORY_FILENAME = "peppol_history.json"
+
+HTTP_PROXIES: dict[str, str] | None = None
+
+
+def _normalize_proxy_host(raw: str) -> str:
+    """Accepte [scheme://]host[:port]. Refuse les credentials inline."""
+    raw = raw.strip()
+    if not raw:
+        raise ValueError("--proxy : valeur vide.")
+    if "://" not in raw:
+        raw = "http://" + raw
+    scheme, _, rest = raw.partition("://")
+    if not rest:
+        raise ValueError("--proxy : hôte manquant.")
+    if "@" in rest:
+        raise ValueError(
+            "--proxy n'accepte pas les credentials inline. "
+            "Saisie au prompt, ou via PEPPOL_PROXY_USER / PEPPOL_PROXY_PASS."
+        )
+    return f"{scheme}://{rest}"
+
+
+def _build_proxy_url(host_url: str, user: str, password: str) -> str:
+    if not user:
+        return host_url
+    scheme, _, rest = host_url.partition("://")
+    cred = urllib.parse.quote(user, safe="")
+    if password:
+        cred += ":" + urllib.parse.quote(password, safe="")
+    return f"{scheme}://{cred}@{rest}"
 
 DOCTYPES_FR: dict[str, dict[str, Any]] = {
     "ubl_cius": {
@@ -130,7 +162,7 @@ def query_directory(urn: str, country: str | None, rpc: int = 1, rpi: int = 0) -
     url = f"{DIRECTORY_API_URL}?doctype={_encoded_doctype(urn)}&rpc={rpc}&rpi={rpi}"
     if country:
         url += f"&country={country}"
-    resp = requests.get(url, timeout=REQUEST_TIMEOUT_S)
+    resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
     if resp.status_code != 200:
         raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
     return resp.json()
@@ -762,6 +794,12 @@ def main() -> int:
     parser.add_argument("--no-api", action="store_true",
                         help="Re-rend depuis l'historique existant sans interroger l'API.")
     parser.add_argument("--author", default="@Sandjab")
+    parser.add_argument("--proxy", default=None,
+                        help="Proxy HTTP/HTTPS au format [scheme://]host[:port]. "
+                             "Ex : proxy.corp:8080 ou http://proxy.corp:8080. "
+                             "Credentials demandés au prompt, ou via les variables "
+                             "d'environnement PEPPOL_PROXY_USER / PEPPOL_PROXY_PASS "
+                             "(utile en cron/CI).")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -771,6 +809,39 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
     log = logging.getLogger("peppol")
+
+    if args.proxy:
+        try:
+            host_url = _normalize_proxy_host(args.proxy)
+        except ValueError as e:
+            log.error("%s", e)
+            return 2
+        user = os.environ.get("PEPPOL_PROXY_USER", "")
+        password = os.environ.get("PEPPOL_PROXY_PASS", "")
+        is_interactive = sys.stdin is not None and sys.stdin.isatty()
+        if not user and is_interactive:
+            user = input("Proxy user (vide si pas d'auth) : ").strip()
+        if user and not password and is_interactive:
+            password = getpass.getpass("Proxy password : ")
+        if not is_interactive and user and "PEPPOL_PROXY_PASS" not in os.environ:
+            log.error(
+                "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
+                "non-interactif : abandon."
+            )
+            return 2
+        if password and not user:
+            log.error("Proxy password défini sans utilisateur : abandon.")
+            return 2
+        proxy_url = _build_proxy_url(host_url, user, password)
+        global HTTP_PROXIES
+        HTTP_PROXIES = {"http": proxy_url, "https": proxy_url}
+        # Exporte aussi en env standard (lowercase + uppercase) pour que
+        # WeasyPrint (fetch fonts/CSS via urllib) et tout sous-processus
+        # respectent le proxy.
+        for key in ("http_proxy", "https_proxy", "HTTP_PROXY", "HTTPS_PROXY"):
+            os.environ[key] = proxy_url
+        auth_state = f"avec auth ({user})" if user else "sans auth"
+        log.info("Proxy actif : %s — %s", host_url, auth_state)
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)
