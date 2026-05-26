@@ -30,17 +30,13 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: System dependencies (WeasyPrint)
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libcairo2 libpango-1.0-0 libpangoft2-1.0-0
-
       - name: Python dependencies
-        run: pip install requests jinja2 weasyprint
+        run: pip install requests jinja2
 
-      - name: Generate report
+      - name: Generate report (HTML brief only)
         run: |
           python generate_peppol_report.py \
+            --no-pdf \
             --history peppol_history.json \
             --output-dir ./site
 

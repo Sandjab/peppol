@@ -45,7 +45,8 @@ Workflow GitHub Actions `.github/workflows/daily-report.yml` :
   (CEST, UTC+2). En heure d'hiver (CET, UTC+1) le run tombe à 08:00 Paris —
   ajuster le cron deux fois par an si la précision horaire compte.
 - Déclenchement manuel `workflow_dispatch` également disponible.
-- Étapes : install deps → run script → commit `peppol_history.json` mis à
+- Étapes : install deps → run script en mode brief `--no-pdf` (HTML
+  uniquement, pas de WeasyPrint) → commit `peppol_history.json` mis à
   jour sur la branche par défaut → publie le HTML sur **GitHub Pages**
   (`sandjab.github.io/peppol`).
 - Le workflow ne déclenche son cron que depuis la branche par défaut (`main`)
