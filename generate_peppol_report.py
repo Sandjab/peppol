@@ -88,18 +88,12 @@ def _normalize_proxy_host(raw: str) -> str:
 
 
 def _build_proxy_url(host_url: str, user: str, password: str) -> str:
-    if not user and not password:
+    if not user:
         return host_url
     scheme, _, rest = host_url.partition("://")
-    if user and password:
-        cred = (
-            f"{urllib.parse.quote(user, safe='')}"
-            f":{urllib.parse.quote(password, safe='')}"
-        )
-    elif user:
-        cred = urllib.parse.quote(user, safe="")
-    else:
-        cred = f":{urllib.parse.quote(password, safe='')}"
+    cred = urllib.parse.quote(user, safe="")
+    if password:
+        cred += ":" + urllib.parse.quote(password, safe="")
     return f"{scheme}://{cred}@{rest}"
 
 DOCTYPES_FR: dict[str, dict[str, Any]] = {
@@ -824,23 +818,20 @@ def main() -> int:
             return 2
         user = os.environ.get("PEPPOL_PROXY_USER", "")
         password = os.environ.get("PEPPOL_PROXY_PASS", "")
-        if not user and sys.stdin.isatty():
+        is_interactive = sys.stdin is not None and sys.stdin.isatty()
+        if not user and is_interactive:
             user = input("Proxy user (vide si pas d'auth) : ").strip()
-        if user and not password and sys.stdin.isatty():
+        if user and not password and is_interactive:
             password = getpass.getpass("Proxy password : ")
-        if not sys.stdin.isatty():
-            if user and "PEPPOL_PROXY_PASS" not in os.environ:
-                log.error(
-                    "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
-                    "non-interactif : abandon."
-                )
-                return 2
-            if password and not user:
-                log.error(
-                    "PEPPOL_PROXY_PASS défini sans PEPPOL_PROXY_USER en environnement "
-                    "non-interactif : abandon."
-                )
-                return 2
+        if not is_interactive and user and "PEPPOL_PROXY_PASS" not in os.environ:
+            log.error(
+                "PEPPOL_PROXY_USER défini sans PEPPOL_PROXY_PASS en environnement "
+                "non-interactif : abandon."
+            )
+            return 2
+        if password and not user:
+            log.error("Proxy password défini sans utilisateur : abandon.")
+            return 2
         proxy_url = _build_proxy_url(host_url, user, password)
         global HTTP_PROXIES
         HTTP_PROXIES = {"http": proxy_url, "https": proxy_url}
