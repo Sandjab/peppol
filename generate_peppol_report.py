@@ -40,6 +40,9 @@ from dataclasses import dataclass, field, asdict
 from datetime import datetime, date, timedelta
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
+
+PARIS_TZ = ZoneInfo("Europe/Paris")
 
 try:
     import requests
@@ -65,6 +68,9 @@ REQUEST_TIMEOUT_S = 90
 DEFAULT_SAMPLE_SIZE = 1000
 SCHEME = "busdox-docid-qns"
 HISTORY_FILENAME = "peppol_history.json"
+
+HTTP_RETRY_ATTEMPTS = 3
+HTTP_RETRY_BACKOFF_S = (1.0, 2.0, 4.0)
 
 HTTP_PROXIES: dict[str, str] | None = None
 
@@ -162,10 +168,27 @@ def query_directory(urn: str, country: str | None, rpc: int = 1, rpi: int = 0) -
     url = f"{DIRECTORY_API_URL}?doctype={_encoded_doctype(urn)}&rpc={rpc}&rpi={rpi}"
     if country:
         url += f"&country={country}"
-    resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
-    if resp.status_code != 200:
-        raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
-    return resp.json()
+
+    log = logging.getLogger("peppol")
+    last_err: Exception | None = None
+    for attempt in range(HTTP_RETRY_ATTEMPTS):
+        try:
+            resp = requests.get(url, timeout=REQUEST_TIMEOUT_S, proxies=HTTP_PROXIES)
+            if resp.status_code == 200:
+                return resp.json()
+        except (requests.RequestException, ValueError) as e:
+            last_err = e
+        else:
+            # 5xx and 429 are transient; other 4xx are client errors — no retry.
+            if resp.status_code < 500 and resp.status_code != 429:
+                raise RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
+            last_err = RuntimeError(f"HTTP {resp.status_code} sur {url[:120]}…")
+        if attempt < HTTP_RETRY_ATTEMPTS - 1:
+            backoff = HTTP_RETRY_BACKOFF_S[min(attempt, len(HTTP_RETRY_BACKOFF_S) - 1)]
+            log.warning("Tentative %d/%d KO (%s) — retry dans %.1fs",
+                        attempt + 1, HTTP_RETRY_ATTEMPTS, last_err, backoff)
+            time.sleep(backoff)
+    raise last_err if last_err else RuntimeError(f"Échec inconnu sur {url[:120]}…")
 
 
 def fetch_count(urn: str, country: str | None = None) -> int:
@@ -194,7 +217,7 @@ def save_history(history: dict, path: Path) -> None:
 
 def upsert_today(history: dict, today_key: str, counts_fr: dict[str, int]) -> None:
     history["runs"][today_key] = {
-        "fetched_at": datetime.now().isoformat(timespec="seconds"),
+        "fetched_at": datetime.now(PARIS_TZ).isoformat(timespec="seconds"),
         "counts_fr": counts_fr,
     }
 
@@ -318,10 +341,11 @@ def _y_ticks(vmin: float, vmax: float, target: int = 5) -> list[int]:
     if step == 0:
         step = 1
     start = (int(vmin) // step) * step
+    if start < vmin:
+        start += step
     ticks, v = [], start
-    while v <= vmax + step / 2:
-        if v >= vmin - step / 2:
-            ticks.append(v)
+    while v <= vmax:
+        ticks.append(v)
         v += step
     return ticks
 
@@ -354,8 +378,10 @@ def render_svg_volumes(history: dict, width: int = 800, height: int = 360) -> st
     if not all_values:
         return f'<svg viewBox="0 0 {width} {height}"></svg>'
 
-    vmin = 0
-    vmax = _nice_round(max(all_values) * 1.05)
+    raw_min, raw_max = min(all_values), max(all_values)
+    span = max(raw_max - raw_min, raw_max * 0.05, 1)
+    vmin = max(0, int(raw_min - span * 0.10))
+    vmax = int(raw_max + span * 0.10)
 
     margin_l, margin_r, margin_t, margin_b = 64, 16, 18, 78
     plot_w = width - margin_l - margin_r
@@ -623,7 +649,11 @@ def fr_date(d) -> str:
 
 
 def fr_datetime(dt: datetime) -> str:
-    return f"{fr_date(dt)}, {dt.strftime('%H:%M')}\u00a0CET"
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=PARIS_TZ)
+    else:
+        dt = dt.astimezone(PARIS_TZ)
+    return f"{fr_date(dt)}, {dt.strftime('%H:%M')}\u00a0{dt.strftime('%Z')}"
 
 
 def fr_int(n: int) -> str:
@@ -702,7 +732,7 @@ def render_brief(history: dict, today_key: str, *, template_path: Path, author_f
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
-        production_datetime_long=fr_datetime(datetime.now()),
+        production_datetime_long=fr_datetime(datetime.now(PARIS_TZ)),
         counts_rows=build_counts_rows(counts_fr),
         evolution_rows=evo["rows"],
         evolution_refs=evo["refs"],
@@ -747,7 +777,7 @@ def render_detailed(detailed_stats: dict, today_key: str, *, template_path: Path
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
-        production_datetime_long=fr_datetime(datetime.now()),
+        production_datetime_long=fr_datetime(datetime.now(PARIS_TZ)),
         counts=counts,
         doctype_bars=doctype_bars,
         gap=gap,
@@ -846,14 +876,15 @@ def main() -> int:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)
     history = load_history(history_path)
-    today_key = date.today().isoformat()
+    today_d = datetime.now(PARIS_TZ).date()
+    today_key = today_d.isoformat()
     detailed_stats: dict | None = None
 
     # (c) Avertit si l'historique présente un gap avant aujourd'hui.
     if not args.no_api:
-        last_existing = closest_run_at_or_before(history, date.today() - timedelta(days=1))
+        last_existing = closest_run_at_or_before(history, today_d - timedelta(days=1))
         if last_existing is not None:
-            gap = (date.today() - last_existing).days
+            gap = (today_d - last_existing).days
             if gap > 1:
                 log.warning(
                     "Gap d'historique : dernier run = %s (il y a %d jours). "

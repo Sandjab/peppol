@@ -23,9 +23,8 @@ exécuter le script soi-même.
 | `generate_peppol_report.py` | Script CLI |
 | `requirements.txt` | Dépendances Python |
 | `peppol_report_brief.html.j2` | Template Jinja2 du rapport brief |
-| `peppol_report_template.html.j2` | Template Jinja2 du rapport détaillé (**livré séparément**, non versionné) |
+| `peppol_report_template.html.j2` | Template Jinja2 du rapport détaillé (mode `--detailed`, usage local) |
 | `peppol_history.json` | Mémoire des runs (1 entrée par jour, JSON enrichi à chaque exécution) |
-| `peppol_brief_sample.pdf` | Exemple de sortie brief |
 
 ## Installation locale
 
@@ -92,8 +91,8 @@ python generate_peppol_report.py
 0 7 * * * cd /path/to/peppol && /path/to/.venv/bin/python generate_peppol_report.py --output-dir ./out
 ```
 
-**Rapport mensuel détaillé** (nécessite `peppol_report_template.html.j2`,
-livré séparément) :
+**Rapport mensuel détaillé** (utilise `peppol_report_template.html.j2`
+versionné à la racine) :
 ```bash
 python generate_peppol_report.py --detailed --output-dir ./monthly/2026-05
 ```
@@ -127,10 +126,10 @@ les caractères spéciaux.
 
 ## Mode `--detailed` — note d'usage
 
-Le template `peppol_report_template.html.j2` n'est **pas versionné** dans
-ce repo : la publication automatique se limite au brief. Si tu veux
-utiliser le mode `--detailed` en local, place le template à la racine
-(ou pointe vers lui avec `--template-detailed`).
+Le template `peppol_report_template.html.j2` est versionné à la racine
+du repo et destiné à un usage en local : la publication automatique
+quotidienne se limite au brief. Lancer le mode détaillé via
+`--detailed`, ou pointer vers un autre chemin avec `--template-detailed`.
 
 ## Structure du JSON d'historique
 

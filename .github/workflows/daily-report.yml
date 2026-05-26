@@ -72,3 +72,20 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+
+  notify-failure:
+    needs: [build, deploy]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open issue on failure
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh issue create \
+            --repo "${{ github.repository }}" \
+            --title "Daily Peppol Report failed — $(date -u +%Y-%m-%d)" \
+            --body "Le workflow quotidien a échoué. Logs : $RUN_URL"
