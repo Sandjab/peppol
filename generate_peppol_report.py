@@ -827,7 +827,7 @@ def main() -> int:
     parser.add_argument("--no-pdf", action="store_true")
     parser.add_argument("--no-api", action="store_true",
                         help="Re-rend depuis l'historique existant sans interroger l'API.")
-    parser.add_argument("--author", default="@Sandjab")
+    parser.add_argument("--author", default="@Sandjab (Jean-Paul Gavini)")
     parser.add_argument("--proxy", default=None,
                         help="Proxy HTTP/HTTPS au format [scheme://]host[:port]. "
                              "Ex : proxy.corp:8080 ou http://proxy.corp:8080. "
