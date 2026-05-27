@@ -442,13 +442,14 @@ h2 .sub {
   <p>Données extraites de l'API publique <strong>Peppol Directory</strong> (OpenPeppol AISBL) via <code>/search/1.0/json?country=FR&amp;rpc=1</code> pour chacun des 6 doctypes France listés. Snapshot daté du <strong>{{ production_datetime_long }}</strong>.</p>
   <p>Le chiffre par doctype provient du champ <code>total-result-count</code> renvoyé par l'API (comptage exhaustif côté serveur sur l'index Directory). L'historique est conservé dans <code>peppol_history.json</code>, une entrée par jour, écrasement si re-run. Indexation Directory asynchrone&nbsp;: variations de quelques pour-cent jour à jour possibles, indépendantes des déclarations SMP réelles.</p>
   <p>Référence PASR&nbsp;: <a href="{{ pasr_url }}" target="_blank">France PASR 2026.02.27</a> (§6 et §7 — formats de réception obligatoires pour les PA).</p>
+  <p>Code source et historique des données&nbsp;: <a href="https://github.com/Sandjab/peppol" target="_blank">github.com/Sandjab/peppol</a>.</p>
 </section>
 
 <footer class="colophon">
   <div>
     <div class="brand"><span class="peppol-mini">@Sandjab</span> Comptages quotidiens · PEPPOL France</div>
     Rapport produit par <strong style="color:var(--text);font-weight:600;">{{ author_full }}</strong><br>
-    Date de production&nbsp;: {{ production_date_short }}<br>
+    Date de production&nbsp;: {{ production_date_short }}, {{ production_time_short }} (Paris)<br>
     Données &copy; OpenPeppol AISBL — <a href="https://directory.peppol.eu" target="_blank">directory.peppol.eu</a>
   </div>
   <div class="right">

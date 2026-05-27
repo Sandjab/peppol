@@ -2,11 +2,15 @@ name: Daily Peppol Report
 
 # Daily run + publication on https://sandjab.github.io/peppol
 #
-# 07:00 UTC = 09:00 Europe/Paris (CEST, summer). En heure d'hiver (CET),
-# ce sera 08:00 Paris — ajuster manuellement si la précision compte.
+# 05:17 UTC = 07:17 Europe/Paris (CEST, été). En heure d'hiver (CET, UTC+1)
+# ce sera 06:17 Paris — ajuster manuellement si la précision compte.
+#
+# Décalé volontairement de l'heure pile (:00) : GitHub Actions documente
+# que les schedules à l'heure pile sont les plus susceptibles d'être
+# retardés ou skippés pendant les pics de charge.
 on:
   schedule:
-    - cron: "0 7 * * *"
+    - cron: "17 5 * * *"
   workflow_dispatch:
 
 permissions:

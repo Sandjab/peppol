@@ -1455,6 +1455,7 @@ p.body { max-width: 70ch; color: #2a2a2a; }
     <li>Le filtre <code>country=FR</code> filtre sur le pays de résidence légale de l'entité (champ <code>countryCode</code>), pas sur le scheme du participant Peppol. L'écart avec le total monde reste &lt;&nbsp;0,01&nbsp;% pour ces profils par construction franco-français.</li>
     <li>Snapshot daté du <strong>{{ production_datetime_long }}</strong>. Indexation Directory asynchrone&nbsp;: variation possible de quelques pour-cent jour à jour.</li>
   </ul>
+  <p style="margin-top:16px">Code source et historique des données&nbsp;: <a href="https://github.com/Sandjab/peppol" target="_blank">github.com/Sandjab/peppol</a>.</p>
 </section>
 
 <!-- ════ COLOPHON ═══════════════════════════════════════ -->
@@ -1462,7 +1463,7 @@ p.body { max-width: 70ch; color: #2a2a2a; }
   <div>
     <div class="brand"><span class="peppol-mini">@Sandjab</span> Rapport d'observation · PEPPOL France</div>
     Rapport produit par <strong style="color:var(--text);font-weight:600;">{{ author_full }}</strong><br>
-    Date de production&nbsp;: {{ production_date_short }}<br>
+    Date de production&nbsp;: {{ production_date_short }}, {{ production_time_short }} (Paris)<br>
     Données &copy; OpenPeppol AISBL — <a href="https://directory.peppol.eu" target="_blank">directory.peppol.eu</a>
   </div>
   <div class="right">
