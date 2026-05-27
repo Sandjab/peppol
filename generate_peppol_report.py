@@ -728,11 +728,13 @@ def render_brief(history: dict, today_key: str, *, template_path: Path, author_f
 
     dates = sorted_dates(history)
     evo = build_evolution(history, today_key)
+    now_paris = datetime.now(PARIS_TZ)
     return env.get_template(template_path.name).render(
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
-        production_datetime_long=fr_datetime(datetime.now(PARIS_TZ)),
+        production_time_short=now_paris.strftime("%H:%M:%S"),
+        production_datetime_long=fr_datetime(now_paris),
         counts_rows=build_counts_rows(counts_fr),
         evolution_rows=evo["rows"],
         evolution_refs=evo["refs"],
@@ -773,11 +775,13 @@ def render_detailed(detailed_stats: dict, today_key: str, *, template_path: Path
     env.filters["fr_int"] = fr_int
     env.filters["nbsp"] = nbsp
     today_d = date.fromisoformat(today_key)
+    now_paris = datetime.now(PARIS_TZ)
     return env.get_template(template_path.name).render(
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
-        production_datetime_long=fr_datetime(datetime.now(PARIS_TZ)),
+        production_time_short=now_paris.strftime("%H:%M:%S"),
+        production_datetime_long=fr_datetime(now_paris),
         counts=counts,
         doctype_bars=doctype_bars,
         gap=gap,

@@ -39,9 +39,11 @@ PDF KO.
 
 Workflow GitHub Actions `.github/workflows/daily-report.yml` :
 
-- Cron quotidien `0 7 * * *` UTC ≈ **09:00 Europe/Paris** en heure d'été
-  (CEST, UTC+2). En heure d'hiver (CET, UTC+1) le run tombe à 08:00 Paris —
+- Cron quotidien `17 5 * * *` UTC ≈ **07:17 Europe/Paris** en heure d'été
+  (CEST, UTC+2). En heure d'hiver (CET, UTC+1) le run tombe à 06:17 Paris —
   ajuster le cron deux fois par an si la précision horaire compte.
+- Décalage volontaire de l'heure pile : GitHub documente que les schedules
+  à `:00` sont retardés ou skippés pendant les pics de charge.
 - Déclenchement manuel `workflow_dispatch` également disponible.
 - Étapes : install deps → run script en mode brief `--no-pdf` (HTML
   uniquement, pas de WeasyPrint) → commit `peppol_history.json` mis à
