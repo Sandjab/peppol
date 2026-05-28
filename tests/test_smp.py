@@ -5,48 +5,71 @@ from unittest import mock
 import generate_peppol_report as m
 
 
-class TestExtractParticipantValue:
-    def test_dict_form(self):
-        pid = {"scheme": "iso6523-actorid-upis", "value": "0225:siren:519840501"}
-        assert m._extract_participant_value(pid) == "0225:siren:519840501"
+class TestCanonicalParticipantId:
+    def test_dict_form_returns_scheme_value(self):
+        pid = {"scheme": "iso6523-actorid-upis", "value": "0225:920227972"}
+        assert m._canonical_participant_id(pid) == "iso6523-actorid-upis::0225:920227972"
 
-    def test_dict_value_is_lowercased(self):
-        pid = {"scheme": "iso6523-actorid-upis", "value": "0225:SIREN:519840501"}
-        assert m._extract_participant_value(pid) == "0225:siren:519840501"
+    def test_dict_form_is_lowercased(self):
+        pid = {"scheme": "ISO6523-actorid-upis", "value": "0225:SIREN:519840501"}
+        assert m._canonical_participant_id(pid) == "iso6523-actorid-upis::0225:siren:519840501"
 
     def test_string_with_scheme_prefix(self):
         s = "iso6523-actorid-upis::0225:siren:519840501"
-        assert m._extract_participant_value(s) == "0225:siren:519840501"
+        assert m._canonical_participant_id(s) == "iso6523-actorid-upis::0225:siren:519840501"
 
-    def test_string_without_scheme_prefix(self):
-        s = "0225:siren:519840501"
-        assert m._extract_participant_value(s) == "0225:siren:519840501"
+    def test_string_uppercase_is_lowercased(self):
+        s = "ISO6523-ACTORID-UPIS::0225:SIREN:519840501"
+        assert m._canonical_participant_id(s) == "iso6523-actorid-upis::0225:siren:519840501"
+
+    def test_string_without_scheme_is_rejected(self):
+        # Canonical form requires both halves; ambiguous value-only strings
+        # are rejected rather than guessed.
+        assert m._canonical_participant_id("0225:siren:519840501") is None
 
     def test_missing_or_empty(self):
-        assert m._extract_participant_value({"scheme": "x", "value": ""}) is None
-        assert m._extract_participant_value({}) is None
-        assert m._extract_participant_value(None) is None  # type: ignore
-        assert m._extract_participant_value("") is None
+        assert m._canonical_participant_id({"scheme": "x", "value": ""}) is None
+        assert m._canonical_participant_id({"scheme": "", "value": "x"}) is None
+        assert m._canonical_participant_id({"value": "x"}) is None
+        assert m._canonical_participant_id({"scheme": "x"}) is None
+        assert m._canonical_participant_id({}) is None
+        assert m._canonical_participant_id(None) is None  # type: ignore
+        assert m._canonical_participant_id("") is None
+        assert m._canonical_participant_id("foo::") is None
+        assert m._canonical_participant_id("::bar") is None
 
 
 class TestSmlFqdn:
-    def test_format_matches_peppol_spec(self):
-        """FQDN must be B-{md5_hex_lowercase}.iso6523-actorid-upis.{SML domain}."""
-        value = "0225:siren:519840501"
-        expected_hash = hashlib.md5(value.encode("utf-8")).hexdigest()
-        fqdn = m._sml_fqdn(value)
+    def test_format_matches_peppol_spec_full_canonical_form(self):
+        """FQDN must be B-{md5_hex_of_lowercase_canonical_id}.{scheme}.{SML zone}.
+
+        Per Peppol Policy for use of Identifiers v4 §4 the MD5 input is the
+        full "scheme::value" canonical form, not just the value. The SML
+        zone is the in-house OpenPeppol Production zone (post-2026 migration).
+        """
+        canonical = "iso6523-actorid-upis::0225:920227972"
+        expected_hash = hashlib.md5(canonical.encode("utf-8")).hexdigest()
+        fqdn = m._sml_fqdn(canonical)
         assert fqdn.lower() == (
             f"b-{expected_hash}.iso6523-actorid-upis."
-            f"edelivery.tech.ec.europa.eu"
+            f"participant.sml.prod.tech.peppol.org"
         )
 
-    def test_hash_is_md5_of_lowercase(self):
-        # Different cases of the value yield different hashes IF caller forgets
-        # to lowercase — but _extract_participant_value() already lowercases.
-        # Here we just confirm _sml_fqdn doesn't normalize on its own.
-        a = m._sml_fqdn("abc")
-        b = m._sml_fqdn("ABC")
-        assert a != b
+    def test_known_hash_for_real_participant(self):
+        # Regression test pinning the spec-correct hash for a real French
+        # participant — this exact MD5 is what the SML responds to.
+        canonical = "iso6523-actorid-upis::0225:920227972"
+        fqdn = m._sml_fqdn(canonical)
+        assert fqdn == (
+            "B-05ae1c242563ef99b43c016365a517a0"
+            ".iso6523-actorid-upis.participant.sml.prod.tech.peppol.org"
+        )
+
+    def test_scheme_from_input_appears_in_fqdn(self):
+        # The DNS scheme label comes from the canonical input, not a hardcoded
+        # constant — important if Peppol ever extends to other scheme labels.
+        fqdn = m._sml_fqdn("other-scheme::abc")
+        assert ".other-scheme." in fqdn
 
 
 class TestSmpRootFromHostname:
@@ -109,13 +132,13 @@ class TestCollectSmpCoverage:
         #   docaposte.fr serves A & B → on ubl_cius+ubl_ext+facturx
         #   contoso.fr   serves C & D → on ubl_cius only
         smp_map = {
-            "0225:siren:a": "docaposte.fr",
-            "0225:siren:b": "docaposte.fr",
-            "0225:siren:c": "contoso.fr",
-            "0225:siren:d": "contoso.fr",
+            "iso6523-actorid-upis::0225:siren:a": "docaposte.fr",
+            "iso6523-actorid-upis::0225:siren:b": "docaposte.fr",
+            "iso6523-actorid-upis::0225:siren:c": "contoso.fr",
+            "iso6523-actorid-upis::0225:siren:d": "contoso.fr",
         }
         monkeypatch.setattr(m, "participant_smp_root",
-                            lambda v, **kw: smp_map[m._extract_participant_value(v)])
+                            lambda v, **kw: smp_map.get(v))
         samples = {
             "ubl_cius": [self._match("0225:siren:a"), self._match("0225:siren:b"),
                          self._match("0225:siren:c"), self._match("0225:siren:d")],
@@ -141,19 +164,27 @@ class TestCollectSmpCoverage:
         assert smps["contoso.fr"]["by_doctype"]["ubl_ext"] == 0
 
     def test_sort_order_by_observed_descending(self, monkeypatch):
-        smp_map = {"0225:a": "big.fr", "0225:b": "big.fr", "0225:c": "small.fr"}
+        smp_map = {
+            "iso6523-actorid-upis::0225:a": "big.fr",
+            "iso6523-actorid-upis::0225:b": "big.fr",
+            "iso6523-actorid-upis::0225:c": "small.fr",
+        }
         monkeypatch.setattr(m, "participant_smp_root",
-                            lambda v, **kw: smp_map[m._extract_participant_value(v)])
+                            lambda v, **kw: smp_map.get(v))
         samples = {k: [] for k in m.DOCTYPES_FR}
-        samples["ubl_cius"] = [self._match(x) for x in smp_map]
+        samples["ubl_cius"] = [self._match("0225:a"), self._match("0225:b"),
+                               self._match("0225:c")]
         result = m.collect_smp_coverage(samples)
         roots = [s["root"] for s in result["smps"]]
         assert roots == ["big.fr", "small.fr"]
 
     def test_unresolved_counted_and_excluded(self, monkeypatch):
-        smp_map = {"0225:a": "ok.fr", "0225:b": None}
+        smp_map = {
+            "iso6523-actorid-upis::0225:a": "ok.fr",
+            "iso6523-actorid-upis::0225:b": None,
+        }
         monkeypatch.setattr(m, "participant_smp_root",
-                            lambda v, **kw: smp_map[m._extract_participant_value(v)])
+                            lambda v, **kw: smp_map.get(v))
         samples = {k: [] for k in m.DOCTYPES_FR}
         samples["ubl_cius"] = [self._match("0225:a"), self._match("0225:b")]
         result = m.collect_smp_coverage(samples)

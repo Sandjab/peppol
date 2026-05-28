@@ -9,11 +9,12 @@ types de rapport :
   01/09/2026 (J−N, comptage actuel vs univers TVA ~10 M, vélocité observée
   vs requise). Pensé pour un run quotidien automatisé.
 - **Mode `--detailed`** — analyse complète avec KPIs, signatures de
-  doctypes, échantillon d'entités, et une section **Couverture par SMP**
-  qui résout chaque participant via le SML (DNS public Peppol) puis
-  agrège la palette de doctypes par domaine racine de SMP. Pensé pour un
-  rapport ponctuel ou mensuel ; ajoute ~1-2 min de run à cause du lookup
-  DNS (~6000 résolutions parallélisées).
+  doctypes, échantillon d'entités. Inclut optionnellement (via
+  `--enable-smp-lookup`) une section **Couverture par SMP** qui résout
+  chaque participant via le SML Peppol puis agrège la palette de doctypes
+  par domaine racine de SMP. **Désactivée par défaut** depuis la migration
+  SML 2026 (deadline 31/08/2026) qui vide le SML pendant la transition —
+  à réessayer une fois la migration finalisée.
 
 Le rapport brief est publié quotidiennement sur
 **[sandjab.github.io/peppol](https://sandjab.github.io/peppol)** via GitHub
@@ -87,6 +88,8 @@ python generate_peppol_report.py
 --dns-doh             Mode --detailed : résout le SML via DNS-over-HTTPS
                       (dns.google) au lieu du resolver système. Utile derrière
                       un firewall qui filtre le DNS sortant. Suit --proxy.
+--enable-smp-lookup   Mode --detailed : active la section « Couverture par SMP ».
+                      Off par défaut pendant la migration SML Peppol 2026.
 --verbose, -v         Logs détaillés
 ```
 
@@ -111,21 +114,28 @@ versionné à la racine) :
 python generate_peppol_report.py --detailed --output-dir ./monthly/2026-05
 ```
 
-Le mode `--detailed` ajoute une **section « Couverture par SMP »** : top 15
-domaines de SMP triés par participants observés, avec leur couverture des
-6 doctypes obligatoires PASR §6.1 (X/6) et le nombre de participants
-distincts par doctype.
+Le mode `--detailed` peut optionnellement inclure une **section
+« Couverture par SMP »** (`--enable-smp-lookup`) : top 15 domaines de SMP
+triés par participants observés, avec leur couverture des 6 doctypes
+obligatoires PASR §6.1 (X/6) et le nombre de participants distincts par
+doctype.
 
-**Rapport détaillé derrière un proxy d'entreprise** (cas typique Windows
-en environnement AD) — le DNS sortant est souvent filtré, ce qui fait
-échouer la résolution SML. Activer DoH (HTTPS:443, suit le proxy) :
-```bash
-python generate_peppol_report.py --detailed --no-pdf \
-    --proxy 10.38.253.65:8080 --dns-doh
-```
-Si tous les lookups échouent quand même, la section "Couverture par SMP"
-s'affiche en mode dégradé avec la cause probable et la remédiation
-suggérée — pas de section silencieusement masquée.
+> **Note importante (mai 2026)** : la section SMP est désactivée par
+> défaut. OpenPeppol a engagé fin 2025 une migration du SML (Service
+> Metadata Locator) de la zone CEF eDelivery historique
+> (`edelivery.tech.ec.europa.eu`) vers une zone in-house
+> (`participant.sml.prod.tech.peppol.org`) avec deadlines d'enregistrement
+> SMP au 31/05/2026 et de migration AP Lookup au 31/08/2026. Pendant la
+> transition, le SML public est largement vide pour les participants
+> français — la résolution renvoie 0 et la section ne sert à rien. À
+> réessayer post-août 2026 avec `--enable-smp-lookup --dns-doh` derrière
+> un proxy d'entreprise :
+>
+> ```bash
+> python generate_peppol_report.py --detailed --no-pdf \
+>     --enable-smp-lookup --dns-doh \
+>     --proxy 10.38.253.65:8080
+> ```
 
 **Re-rendu sans appeler l'API** (utile pour itérer sur le template) :
 ```bash
@@ -161,9 +171,12 @@ du repo et destiné à un usage en local : la publication automatique
 quotidienne se limite au brief. Lancer le mode détaillé via
 `--detailed`, ou pointer vers un autre chemin avec `--template-detailed`.
 
-Le mode `--detailed` effectue ~6 000 lookups DNS pour résoudre les
-participants vers leurs SMPs (top 15 affichés). Compte ~1-2 min de
-résolution sur un réseau standard, plus en environnement contraint.
+Avec `--enable-smp-lookup`, le mode `--detailed` effectue ~6 000 lookups
+DNS pour résoudre les participants vers leurs SMPs (top 15 affichés) —
+compte ~1-2 min de résolution sur un réseau standard, plus en
+environnement contraint. Sans le flag, le mode `--detailed` ne fait que
+les 2 échantillons UBL CIUS + UBL EXT nécessaires aux signatures de
+doctypes (~10-15 s en plus du brief).
 
 ## Structure du JSON d'historique
 

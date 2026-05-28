@@ -724,7 +724,10 @@ def analyze_cohort(matches: list[dict], top_n: int = 2) -> CohortStats:
 #
 # On suit le CNAME via socket.gethostbyname_ex() (stdlib uniquement).
 
-SML_BASE_DOMAIN = "edelivery.tech.ec.europa.eu"
+# SML zone Peppol Production (in-house OpenPeppol depuis avril 2026, après
+# migration depuis l'ancienne zone CEF eDelivery edelivery.tech.ec.europa.eu —
+# cf. SML Insourcing 2026, deadline SMP 31/05/2026, AP Lookup 31/08/2026).
+SML_BASE_DOMAIN = "participant.sml.prod.tech.peppol.org"
 SML_SCHEME_LABEL = "iso6523-actorid-upis"
 # Domaine du SML lui-même : on ne veut pas l'afficher comme un "SMP".
 # Sert à filtrer les résolutions qui n'ont pas suivi de CNAME (= participant
@@ -743,29 +746,63 @@ DOH_TIMEOUT_S = 10.0
 # transmet pas de kwargs.
 USE_DNS_DOH = False
 
+# Couverture par SMP : désactivée par défaut depuis la migration SML 2026
+# (cf. SML Insourcing OpenPeppol, deadline SMP 31/05/2026, AP Lookup
+# 31/08/2026). Pendant et juste après la migration, le contenu du SML est
+# en grande partie vide pour les participants français — le lookup retourne
+# alors 0 résolution et la section du rapport n'apporte rien. Activer
+# via --enable-smp-lookup quand la situation se sera stabilisée
+# (probablement post-août 2026).
+ENABLE_SMP_LOOKUP = False
 
-def _extract_participant_value(participant_id: dict | str) -> str | None:
-    """Returns the part after '::' of a Peppol participant identifier.
 
-    Accepts either {"scheme": "...", "value": "..."} or a raw string
-    "scheme::value". Returns the lowercase value or None if invalid.
+def _canonical_participant_id(participant_id: dict | str) -> str | None:
+    """Returns the canonical "scheme::value" form of a Peppol participant
+    identifier, lowercased — the exact input expected by the SML hash
+    construction (cf. Peppol Policy for use of Identifiers v4, §4 "SML
+    DNS hash").
+
+    Accepts either {"scheme": "...", "value": "..."} (the shape Peppol
+    Directory returns) or a raw "scheme::value" string. Returns None
+    if either part is missing.
+
+    NB: hashing only the value (without the scheme prefix) yields a
+    different MD5 and the SML returns NXDOMAIN systematically — that
+    was the bug observed in --detailed runs before this function was
+    fixed to use the canonical form.
     """
     if isinstance(participant_id, dict):
+        scheme = participant_id.get("scheme")
         value = participant_id.get("value")
+        if not isinstance(scheme, str) or not scheme:
+            return None
         if not isinstance(value, str) or not value:
             return None
-        return value.lower()
+        return f"{scheme}::{value}".lower()
     if isinstance(participant_id, str):
-        _, sep, value = participant_id.partition("::")
-        value = (value if sep else participant_id).strip().lower()
-        return value or None
+        raw = participant_id.strip().lower()
+        if not raw or "::" not in raw:
+            return None
+        scheme, _, value = raw.partition("::")
+        if not scheme or not value:
+            return None
+        return f"{scheme}::{value}"
     return None
 
 
-def _sml_fqdn(participant_value: str) -> str:
-    """Builds the SML lookup FQDN for a lowercase participant value."""
-    h = hashlib.md5(participant_value.encode("utf-8")).hexdigest()
-    return f"B-{h}.{SML_SCHEME_LABEL}.{SML_BASE_DOMAIN}"
+def _sml_fqdn(canonical_id: str) -> str:
+    """Builds the SML lookup FQDN for a canonical Peppol participant id.
+
+    Input must be the full "scheme::value" form, lowercased (cf.
+    _canonical_participant_id). Hashing only the value half — what a
+    previous version of this code did — yields the wrong DNS name and
+    NXDOMAIN on every lookup.
+    """
+    h = hashlib.md5(canonical_id.encode("utf-8")).hexdigest()
+    # Extract the scheme part for the DNS label; for Peppol participants
+    # this is always "iso6523-actorid-upis" in production.
+    scheme, _, _ = canonical_id.partition("::")
+    return f"B-{h}.{scheme}.{SML_BASE_DOMAIN}"
 
 
 def _smp_root_from_hostname(hostname: str) -> str:
@@ -879,10 +916,10 @@ def participant_smp_root(participant_id: dict | str) -> str | None:
     Lookup failures (NXDOMAIN, network) yield None — caller treats those
     as "unpublished / unresolved".
     """
-    value = _extract_participant_value(participant_id)
-    if not value:
+    canonical = _canonical_participant_id(participant_id)
+    if not canonical:
         return None
-    fqdn = _sml_fqdn(value)
+    fqdn = _sml_fqdn(canonical)
     if USE_DNS_DOH:
         canonical = _doh_resolve_canonical(fqdn)
         if not canonical:
@@ -928,10 +965,10 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
     all_participants: set[str] = set()
     for key in doctype_keys:
         for m in samples_by_doctype.get(key, []):
-            value = _extract_participant_value(m.get("participantID"))
-            if value:
-                participants_per_doctype[key].add(value)
-                all_participants.add(value)
+            canonical = _canonical_participant_id(m.get("participantID"))
+            if canonical:
+                participants_per_doctype[key].add(canonical)
+                all_participants.add(canonical)
 
     global _DOH_FIRST_ERROR_LOGGED
     _DOH_FIRST_ERROR_LOGGED = False
@@ -1071,17 +1108,22 @@ def collect_detailed(sample_size: int) -> dict[str, Any]:
     counts["bis_billing"] = {"world": fetch_count(DOCTYPE_BIS["urn"], country=None), "fr": 0}
     time.sleep(RATE_LIMIT_DELAY_S)
 
-    log.info("Échantillons (rpc=%d) sur les 6 doctypes PASR…", sample_size)
-    samples_by_doctype: dict[str, list[dict]] = {}
-    for key, meta in DOCTYPES_FR.items():
-        log.info("  sample %s…", key)
-        samples_by_doctype[key] = fetch_sample(meta["urn"], "FR", rpc=sample_size)
+    if ENABLE_SMP_LOOKUP:
+        log.info("Échantillons (rpc=%d) sur les 6 doctypes PASR…", sample_size)
+        samples_by_doctype: dict[str, list[dict]] = {}
+        for key, meta in DOCTYPES_FR.items():
+            log.info("  sample %s…", key)
+            samples_by_doctype[key] = fetch_sample(meta["urn"], "FR", rpc=sample_size)
+            time.sleep(RATE_LIMIT_DELAY_S)
+        sample_cius = samples_by_doctype["ubl_cius"]
+        sample_ext = samples_by_doctype["ubl_ext"]
+        smp_coverage = collect_smp_coverage(samples_by_doctype)
+    else:
+        log.info("Échantillons (rpc=%d) UBL CIUS + UBL EXT…", sample_size)
+        sample_cius = fetch_sample(DOCTYPES_FR["ubl_cius"]["urn"], "FR", rpc=sample_size)
         time.sleep(RATE_LIMIT_DELAY_S)
-
-    sample_cius = samples_by_doctype["ubl_cius"]
-    sample_ext = samples_by_doctype["ubl_ext"]
-
-    smp_coverage = collect_smp_coverage(samples_by_doctype)
+        sample_ext = fetch_sample(DOCTYPES_FR["ubl_ext"]["urn"], "FR", rpc=sample_size)
+        smp_coverage = None
 
     return {
         "counts": counts,
@@ -1227,6 +1269,12 @@ def main() -> int:
                              "(dns.google) au lieu du resolver système. Utile en "
                              "environnement corporatif où le DNS sortant est filtré. "
                              "Suit la conf --proxy.")
+    parser.add_argument("--enable-smp-lookup", action="store_true",
+                        help="Mode --detailed : active la résolution participant → SMP "
+                             "via le SML (DNS public Peppol) et la section « Couverture "
+                             "par SMP » du rapport. Désactivé par défaut depuis la "
+                             "migration SML Peppol 2026 (deadline 31/08/2026) qui vide "
+                             "le SML pendant la transition. À réessayer post-août 2026.")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -1276,6 +1324,12 @@ def main() -> int:
         log.info("SML lookup en DoH : %s%s",
                  DOH_URL,
                  " (via proxy)" if HTTP_PROXIES else "")
+
+    if args.enable_smp_lookup:
+        global ENABLE_SMP_LOOKUP
+        ENABLE_SMP_LOOKUP = True
+        log.info("SMP lookup activé (feature expérimentale — désactivée par "
+                 "défaut pendant la migration SML Peppol 2026).")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)
