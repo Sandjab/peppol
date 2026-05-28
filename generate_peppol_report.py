@@ -746,6 +746,15 @@ DOH_TIMEOUT_S = 10.0
 # transmet pas de kwargs.
 USE_DNS_DOH = False
 
+# Couverture par SMP : désactivée par défaut depuis la migration SML 2026
+# (cf. SML Insourcing OpenPeppol, deadline SMP 31/05/2026, AP Lookup
+# 31/08/2026). Pendant et juste après la migration, le contenu du SML est
+# en grande partie vide pour les participants français — le lookup retourne
+# alors 0 résolution et la section du rapport n'apporte rien. Activer
+# via --enable-smp-lookup quand la situation se sera stabilisée
+# (probablement post-août 2026).
+ENABLE_SMP_LOOKUP = False
+
 
 def _canonical_participant_id(participant_id: dict | str) -> str | None:
     """Returns the canonical "scheme::value" form of a Peppol participant
@@ -1099,17 +1108,22 @@ def collect_detailed(sample_size: int) -> dict[str, Any]:
     counts["bis_billing"] = {"world": fetch_count(DOCTYPE_BIS["urn"], country=None), "fr": 0}
     time.sleep(RATE_LIMIT_DELAY_S)
 
-    log.info("Échantillons (rpc=%d) sur les 6 doctypes PASR…", sample_size)
-    samples_by_doctype: dict[str, list[dict]] = {}
-    for key, meta in DOCTYPES_FR.items():
-        log.info("  sample %s…", key)
-        samples_by_doctype[key] = fetch_sample(meta["urn"], "FR", rpc=sample_size)
+    if ENABLE_SMP_LOOKUP:
+        log.info("Échantillons (rpc=%d) sur les 6 doctypes PASR…", sample_size)
+        samples_by_doctype: dict[str, list[dict]] = {}
+        for key, meta in DOCTYPES_FR.items():
+            log.info("  sample %s…", key)
+            samples_by_doctype[key] = fetch_sample(meta["urn"], "FR", rpc=sample_size)
+            time.sleep(RATE_LIMIT_DELAY_S)
+        sample_cius = samples_by_doctype["ubl_cius"]
+        sample_ext = samples_by_doctype["ubl_ext"]
+        smp_coverage = collect_smp_coverage(samples_by_doctype)
+    else:
+        log.info("Échantillons (rpc=%d) UBL CIUS + UBL EXT…", sample_size)
+        sample_cius = fetch_sample(DOCTYPES_FR["ubl_cius"]["urn"], "FR", rpc=sample_size)
         time.sleep(RATE_LIMIT_DELAY_S)
-
-    sample_cius = samples_by_doctype["ubl_cius"]
-    sample_ext = samples_by_doctype["ubl_ext"]
-
-    smp_coverage = collect_smp_coverage(samples_by_doctype)
+        sample_ext = fetch_sample(DOCTYPES_FR["ubl_ext"]["urn"], "FR", rpc=sample_size)
+        smp_coverage = None
 
     return {
         "counts": counts,
@@ -1255,6 +1269,12 @@ def main() -> int:
                              "(dns.google) au lieu du resolver système. Utile en "
                              "environnement corporatif où le DNS sortant est filtré. "
                              "Suit la conf --proxy.")
+    parser.add_argument("--enable-smp-lookup", action="store_true",
+                        help="Mode --detailed : active la résolution participant → SMP "
+                             "via le SML (DNS public Peppol) et la section « Couverture "
+                             "par SMP » du rapport. Désactivé par défaut depuis la "
+                             "migration SML Peppol 2026 (deadline 31/08/2026) qui vide "
+                             "le SML pendant la transition. À réessayer post-août 2026.")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -1304,6 +1324,12 @@ def main() -> int:
         log.info("SML lookup en DoH : %s%s",
                  DOH_URL,
                  " (via proxy)" if HTTP_PROXIES else "")
+
+    if args.enable_smp_lookup:
+        global ENABLE_SMP_LOOKUP
+        ENABLE_SMP_LOOKUP = True
+        log.info("SMP lookup activé (feature expérimentale — désactivée par "
+                 "défaut pendant la migration SML Peppol 2026).")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)

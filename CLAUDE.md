@@ -16,11 +16,15 @@ quotidien d'adoption des doctypes France (UBL/CII CIUS & EXTENDED, Factur-X, CDA
   pour permettre l'exécution en local. Le pipeline automatique ne l'utilise
   pas (publication limitée au brief).
 
-Le mode `--detailed` inclut une section **« Couverture par SMP »** qui
-résout chaque participant via le SML (DNS public Peppol, stdlib `socket`)
-pour agréger la palette de doctypes par domaine racine de SMP. ~6000
-lookups DNS en thread pool, 1-2 min de run. Réservé au mode `--detailed`
-(non joué en CI).
+Le mode `--detailed` peut inclure (via `--enable-smp-lookup`) une section
+**« Couverture par SMP »** qui résout chaque participant via le SML
+(DNS public Peppol, stdlib `socket` ou DoH `requests`) pour agréger la
+palette de doctypes par domaine racine de SMP. ~6000 lookups DNS en
+thread pool, 1-2 min de run. **Désactivée par défaut** depuis mai 2026 :
+OpenPeppol a migré le SML hors CEF eDelivery vers la zone in-house
+`participant.sml.prod.tech.peppol.org` (deadline SMP 31/05/2026, AP
+Lookup 31/08/2026), et pendant la transition le SML est vide pour les
+participants français. À réactiver post-août 2026.
 
 ## Commandes utiles
 
