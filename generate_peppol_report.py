@@ -29,13 +29,16 @@ from __future__ import annotations
 
 import argparse
 import getpass
+import hashlib
 import json
 import logging
 import os
+import socket
 import sys
 import time
 import urllib.parse
 from collections import Counter
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, date, timedelta
 from pathlib import Path
@@ -707,6 +710,177 @@ def analyze_cohort(matches: list[dict], top_n: int = 2) -> CohortStats:
 
 
 # ════════════════════════════════════════════════════════════════════
+#  Couverture par SMP (lookup SML)
+# ════════════════════════════════════════════════════════════════════
+#
+# Le Peppol Directory n'expose pas le SMP qui sert chaque participant.
+# Pour relier participant → SMP on doit interroger le SML (Service
+# Metadata Locator), un système DNS public. Mécanique standard :
+#
+#   1. Hash MD5 hex (lowercase) de la "value" du participant ID
+#      (la partie après "scheme::", ex. "0225:siren:519840501").
+#   2. FQDN = "B-{hash}.iso6523-actorid-upis.edelivery.tech.ec.europa.eu".
+#   3. Résolution DNS → CNAME chain → hostname canonique du SMP.
+#
+# On suit le CNAME via socket.gethostbyname_ex() (stdlib uniquement).
+
+SML_BASE_DOMAIN = "edelivery.tech.ec.europa.eu"
+SML_SCHEME_LABEL = "iso6523-actorid-upis"
+# Domaine du SML lui-même : on ne veut pas l'afficher comme un "SMP".
+# Sert à filtrer les résolutions qui n'ont pas suivi de CNAME (= participant
+# non publié ou SML en panne).
+_SML_FQDN_SUFFIX = f".{SML_SCHEME_LABEL}.{SML_BASE_DOMAIN}"
+
+SML_LOOKUP_WORKERS = 20
+
+
+def _extract_participant_value(participant_id: dict | str) -> str | None:
+    """Returns the part after '::' of a Peppol participant identifier.
+
+    Accepts either {"scheme": "...", "value": "..."} or a raw string
+    "scheme::value". Returns the lowercase value or None if invalid.
+    """
+    if isinstance(participant_id, dict):
+        value = participant_id.get("value")
+        if not isinstance(value, str) or not value:
+            return None
+        return value.lower()
+    if isinstance(participant_id, str):
+        _, sep, value = participant_id.partition("::")
+        value = (value if sep else participant_id).strip().lower()
+        return value or None
+    return None
+
+
+def _sml_fqdn(participant_value: str) -> str:
+    """Builds the SML lookup FQDN for a lowercase participant value."""
+    h = hashlib.md5(participant_value.encode("utf-8")).hexdigest()
+    return f"B-{h}.{SML_SCHEME_LABEL}.{SML_BASE_DOMAIN}"
+
+
+def _smp_root_from_hostname(hostname: str) -> str:
+    """Reduces a SMP canonical hostname to its registrable root, used as
+    aggregation key (e.g. "smp-prod.docaposte.fr" → "docaposte.fr").
+
+    Heuristic: keeps the last two dot-separated labels. Acceptable for
+    .fr/.com/.eu/.io which cover the vast majority of EU SMPs. For
+    multi-level eTLDs (.co.uk, .com.fr), this may overshorten — a known
+    limitation, surfaced in the report as "domaine SMP".
+    """
+    parts = hostname.strip(".").lower().split(".")
+    if len(parts) <= 2:
+        return ".".join(parts)
+    return ".".join(parts[-2:])
+
+
+def participant_smp_root(participant_id: dict | str) -> str | None:
+    """Returns the SMP root domain serving a Peppol participant, or None.
+
+    Uses socket.gethostbyname_ex which follows CNAME chains and returns
+    the canonical name. Lookup failures (NXDOMAIN, no CNAME) yield None
+    — caller treats those as "unpublished / unresolved".
+
+    No explicit timeout: gethostbyname_ex delegates to the OS resolver
+    (libc), which does not honor socket.setdefaulttimeout. The OS-level
+    DNS timeout (typically a few seconds with the default resolv.conf)
+    is what bounds each lookup.
+    """
+    value = _extract_participant_value(participant_id)
+    if not value:
+        return None
+    fqdn = _sml_fqdn(value)
+    try:
+        canonical, _aliases, _addrs = socket.gethostbyname_ex(fqdn)
+    except (socket.gaierror, socket.herror, OSError):
+        return None
+    canonical = canonical.rstrip(".").lower()
+    # If the canonical name still ends with the SML suffix, the CNAME
+    # didn't escape the SML zone → not a real SMP.
+    if canonical.endswith(_SML_FQDN_SUFFIX.lower().rstrip(".")):
+        return None
+    return _smp_root_from_hostname(canonical)
+
+
+def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
+    """For each SMP root domain, counts how many distinct participants
+    of each doctype it serves (within the provided samples).
+
+    Returns:
+        {
+          "smps": [
+            {
+              "root": "docaposte.fr",
+              "total_observed": int,           # union over the 6 doctypes
+              "by_doctype": {key: int, ...},   # distinct participants per doctype
+              "doctypes_covered": int,         # how many of the 6 have ≥ 1 participant
+              "missing": [doctype_keys, ...],  # which doctypes have 0 participant
+            }, ...
+          ],
+          "unresolved_count": int,        # participants without a SMP lookup result
+          "total_participants": int,      # unique participants observed (any doctype)
+          "doctype_order": [list of 6 doctype keys, in the report's display order],
+        }
+    """
+    log = logging.getLogger("peppol")
+    doctype_keys = list(DOCTYPES_FR.keys())
+
+    # 1) Bucket participants per doctype, keep only unique values per cell.
+    participants_per_doctype: dict[str, set[str]] = {k: set() for k in doctype_keys}
+    all_participants: set[str] = set()
+    for key in doctype_keys:
+        for m in samples_by_doctype.get(key, []):
+            value = _extract_participant_value(m.get("participantID"))
+            if value:
+                participants_per_doctype[key].add(value)
+                all_participants.add(value)
+
+    log.info("SML lookup : %d participants uniques…", len(all_participants))
+
+    # 2) Resolve participant → SMP root in parallel (DNS is I/O bound).
+    smp_by_participant: dict[str, str | None] = {}
+    if all_participants:
+        with ThreadPoolExecutor(max_workers=SML_LOOKUP_WORKERS) as pool:
+            for value, root in zip(
+                all_participants,
+                pool.map(participant_smp_root, all_participants),
+            ):
+                smp_by_participant[value] = root
+
+    unresolved = sum(1 for r in smp_by_participant.values() if r is None)
+
+    # 3) Aggregate per SMP root.
+    per_smp: dict[str, dict[str, set[str]]] = {}
+    for key, participants in participants_per_doctype.items():
+        for value in participants:
+            root = smp_by_participant.get(value)
+            if not root:
+                continue
+            per_smp.setdefault(root, {k: set() for k in doctype_keys})[key].add(value)
+
+    smps = []
+    for root, by_dt in per_smp.items():
+        total_observed = len(set().union(*by_dt.values()))
+        covered = sum(1 for k in doctype_keys if by_dt[k])
+        missing = [k for k in doctype_keys if not by_dt[k]]
+        smps.append({
+            "root": root,
+            "total_observed": total_observed,
+            "by_doctype": {k: len(v) for k, v in by_dt.items()},
+            "doctypes_covered": covered,
+            "missing": missing,
+        })
+
+    smps.sort(key=lambda r: (-r["total_observed"], r["root"]))
+
+    return {
+        "smps": smps,
+        "unresolved_count": unresolved,
+        "total_participants": len(all_participants),
+        "doctype_order": doctype_keys,
+    }
+
+
+# ════════════════════════════════════════════════════════════════════
 #  Formatage
 # ════════════════════════════════════════════════════════════════════
 
@@ -772,10 +946,17 @@ def collect_detailed(sample_size: int) -> dict[str, Any]:
     counts["bis_billing"] = {"world": fetch_count(DOCTYPE_BIS["urn"], country=None), "fr": 0}
     time.sleep(RATE_LIMIT_DELAY_S)
 
-    log.info("Échantillons (rpc=%d)…", sample_size)
-    sample_cius = fetch_sample(DOCTYPES_FR["ubl_cius"]["urn"], "FR", rpc=sample_size)
-    time.sleep(RATE_LIMIT_DELAY_S)
-    sample_ext = fetch_sample(DOCTYPES_FR["ubl_ext"]["urn"], "FR", rpc=sample_size)
+    log.info("Échantillons (rpc=%d) sur les 6 doctypes PASR…", sample_size)
+    samples_by_doctype: dict[str, list[dict]] = {}
+    for key, meta in DOCTYPES_FR.items():
+        log.info("  sample %s…", key)
+        samples_by_doctype[key] = fetch_sample(meta["urn"], "FR", rpc=sample_size)
+        time.sleep(RATE_LIMIT_DELAY_S)
+
+    sample_cius = samples_by_doctype["ubl_cius"]
+    sample_ext = samples_by_doctype["ubl_ext"]
+
+    smp_coverage = collect_smp_coverage(samples_by_doctype)
 
     return {
         "counts": counts,
@@ -783,6 +964,7 @@ def collect_detailed(sample_size: int) -> dict[str, Any]:
         "cohort_ext": asdict(analyze_cohort(sample_ext)),
         "names_cius": extract_names(sample_cius, limit=10),
         "names_ext": extract_names(sample_ext, limit=10),
+        "smp_coverage": smp_coverage,
     }
 
 
@@ -872,6 +1054,9 @@ def render_detailed(detailed_stats: dict, today_key: str, *, template_path: Path
         cohort_ext=detailed_stats["cohort_ext"],
         names_cius=detailed_stats["names_cius"],
         names_ext=detailed_stats["names_ext"],
+        smp_coverage=detailed_stats.get("smp_coverage"),
+        doctypes_fr=DOCTYPES_FR,
+        doctype_styles=DOCTYPE_STYLES,
         pasr_url=PASR_URL,
     )
 

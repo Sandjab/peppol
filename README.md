@@ -49,6 +49,12 @@ Si tu n'as pas besoin du PDF, tu peux te passer des libs système et lancer
 le script avec `--no-pdf` — `weasyprint` reste dans `requirements.txt`
 mais ne sera tout simplement pas appelé.
 
+> **Windows** : `requirements.txt` installe automatiquement le package PyPI
+> `tzdata`, indispensable car Windows ne fournit pas de base de fuseaux
+> horaires système (sans lui, `ZoneInfo("Europe/Paris")` lève
+> `ZoneInfoNotFoundError`). Sur Linux/macOS le tzdata système prime, le
+> package n'est pas installé.
+
 ## Premier run
 
 ```bash

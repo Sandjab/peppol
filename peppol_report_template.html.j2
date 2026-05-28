@@ -511,6 +511,68 @@ p.body { max-width: 70ch; color: #2a2a2a; }
 .callout p em { font-style: italic; color: var(--text-muted); }
 
 /* ════ DOCTYPE TABLE ═════════════════════════════════ */
+/* ════ SMP COVERAGE TABLE ════════════════════════════ */
+.smp-table {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+.smp-table-header,
+.smp-row {
+  display: grid;
+  grid-template-columns: minmax(200px, 1.7fr) 110px 110px repeat(6, 44px);
+  gap: 12px;
+  align-items: center;
+  padding: 12px 18px;
+}
+.smp-table-header {
+  background: var(--peppol-red);
+  color: var(--peppol-white);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.smp-table-header .num,
+.smp-row .num { text-align: right; font-feature-settings: "tnum" 1; }
+.smp-table-header .doc { text-align: center; }
+.smp-row {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.smp-row:nth-child(even) { background: var(--card); }
+.smp-row:last-child { border-bottom: none; }
+.smp-row .root { font-weight: 600; color: var(--text); }
+.smp-row .root small {
+  display: block;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.smp-row .cell {
+  text-align: center;
+  font-feature-settings: "tnum" 1;
+}
+.smp-row .cell.ok { color: var(--peppol-r800); font-weight: 600; }
+.smp-row .cell.miss { color: var(--text-muted); }
+.smp-row .cell.miss::before { content: "–"; }
+.smp-row .coverage {
+  font-weight: 600;
+  color: var(--peppol-red-dark);
+}
+.smp-row .coverage.full { color: #197d2c; }
+.smp-row .coverage.partial { color: var(--peppol-r700); }
+.smp-row .coverage.weak { color: var(--text-muted); }
+.smp-footnote {
+  margin-top: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
 .doctype-table {
   margin-top: 24px;
   border: 1px solid var(--border);
@@ -1476,10 +1538,66 @@ p.body { max-width: 70ch; color: #2a2a2a; }
   </div>
 </section>
 
-<!-- ════ SECTION 06 — GLOSSAIRE ═════════════════════════ -->
-<section class="section page-break">
+<!-- ════ SECTION 06 — COUVERTURE SMP ════════════════════ -->
+{%- if smp_coverage and smp_coverage.smps %}
+<section class="section">
   <div class="section-header">
     <div class="section-number">06</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Couverture côté offre</div>
+      <h2>Quelles palettes de doctypes les SMP français exposent-ils&nbsp;?</h2>
+    </div>
+  </div>
+
+  <p class="body">Le PASR France §6.1 impose à chaque Plateforme Agréée d'inscrire dans son SMP les capacités de réception pour les <strong>6 doctypes obligatoires</strong>. L'API Peppol Directory ne donne pas le SMP par participant&nbsp;: on retrouve le SMP responsable par lookup SML (DNS public sur <code style="font-family:var(--font-mono);font-size:13px;background:var(--card);padding:2px 6px;">{{ smp_coverage.doctype_order|length }}&nbsp;doctype × jusqu'à 1&nbsp;000 participants par échantillon</code>), puis on agrège par domaine racine du SMP.</p>
+
+  <p class="body">Pour chaque SMP, le tableau ci-dessous indique combien de participants français y ont été observés (union sur les 6 échantillons), combien des 6 doctypes PASR sont présents dans l'échantillon, et le détail par doctype. Une cellule vide ({{ "–"|nbsp }}) signifie qu'aucun des participants observés de ce SMP n'a déclaré ce doctype dans son échantillon — <em>borne basse</em> donc, le SMP peut en réalité supporter le format pour d'autres clients hors sample.</p>
+
+  <div class="smp-table">
+    <div class="smp-table-header">
+      <div>Domaine SMP</div>
+      <div class="num">Observés</div>
+      <div class="num">Couverture</div>
+      {%- for k in smp_coverage.doctype_order %}
+      <div class="doc">{{ doctype_styles[k].short }}</div>
+      {%- endfor %}
+    </div>
+    {%- for s in smp_coverage.smps[:15] %}
+    <div class="smp-row">
+      <div class="root">{{ s.root }}<small>{{ doctypes_fr[s.missing[0]].urn_short if s.missing else "tous doctypes couverts" }}</small></div>
+      <div class="num">{{ s.total_observed|fr_int }}</div>
+      <div class="num coverage {% if s.doctypes_covered == 6 %}full{% elif s.doctypes_covered >= 4 %}partial{% else %}weak{% endif %}">{{ s.doctypes_covered }}&nbsp;/&nbsp;6</div>
+      {%- for k in smp_coverage.doctype_order %}
+        {%- set n = s.by_doctype[k] %}
+        {%- if n > 0 %}
+        <div class="cell ok">{{ n|fr_int }}</div>
+        {%- else %}
+        <div class="cell miss"></div>
+        {%- endif %}
+      {%- endfor %}
+    </div>
+    {%- endfor %}
+  </div>
+
+  <p class="smp-footnote">
+    {{ smp_coverage.total_participants|fr_int }} participants uniques échantillonnés
+    {%- if smp_coverage.unresolved_count -%}
+      , dont {{ smp_coverage.unresolved_count|fr_int }} non résolus par le SML
+      (participant non publié, panne SML transitoire, ou enregistrement périmé) — exclus du tableau.
+    {%- else -%}.{%- endif %}
+    Affichage limité aux 15 premiers SMPs par nb de participants observés.
+  </p>
+
+  <p class="body" style="margin-top:18px;">
+    <strong>Lecture&nbsp;:</strong> un SMP affichant <em>6/6</em> respecte le PASR §6.1 pour les clients vus dans nos échantillons. Un SMP affichant <em>1/6</em> ou <em>2/6</em> traduit soit une couverture partielle réelle (palette héritée pré-PASR), soit un échantillonnage trop faible si <em>Observés</em> est petit (&lt; 20 environ). L'écart entre couverture déclarative et capacité technique réelle peut être résorbé par une mise à jour de SMP côté PA, sans changement infra.
+  </p>
+</section>
+{%- endif %}
+
+<!-- ════ SECTION 07 — GLOSSAIRE ═════════════════════════ -->
+<section class="section page-break">
+  <div class="section-header">
+    <div class="section-number">07</div>
     <div class="section-title-block">
       <div class="section-eyebrow">Glossaire</div>
       <h2>Vocabulaire utilisé dans ce rapport</h2>
@@ -1565,7 +1683,7 @@ p.body { max-width: 70ch; color: #2a2a2a; }
 
 <!-- ════ MÉTHODE ════════════════════════════════════════ -->
 <section class="method page-break">
-  <h3>07 — Méthode &amp; reproductibilité</h3>
+  <h3>08 — Méthode &amp; reproductibilité</h3>
   <p>Données extraites de l'API publique <strong>Peppol Directory</strong> opérée par OpenPeppol AISBL. Sept doctypes du périmètre français interrogés via endpoint <code>/search/1.0/json</code> avec paramètre <code>country=FR</code>, et croisés avec l'équivalent monde.</p>
 
   <p style="margin-top:16px">URL d'interrogation pour France UBL Invoice EXTENDED-CTC-FR — reproductible immédiatement&nbsp;:</p>
