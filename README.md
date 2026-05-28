@@ -3,12 +3,17 @@
 Pipeline reproductible qui interroge l'API Peppol Directory et produit deux
 types de rapport :
 
-- **Mode brief** (défaut) — comptages bruts du jour + table d'évolution
-  (Δ J−1 / J−7 / origine) + 2 graphiques SVG. Pensé pour un run quotidien
-  automatisé.
+- **Mode brief** (défaut) — comptages bruts du jour, table d'évolution
+  (Δ J−1 / J−7 / origine), 2 graphiques SVG, et un encart **PASR D-Day**
+  qui positionne l'adoption observée par rapport à la réforme CTC du
+  01/09/2026 (J−N, comptage actuel vs univers TVA ~10 M, vélocité observée
+  vs requise). Pensé pour un run quotidien automatisé.
 - **Mode `--detailed`** — analyse complète avec KPIs, signatures de
-  doctypes, échantillon d'entités. Pensé pour un rapport ponctuel ou
-  mensuel.
+  doctypes, échantillon d'entités, et une section **Couverture par SMP**
+  qui résout chaque participant via le SML (DNS public Peppol) puis
+  agrège la palette de doctypes par domaine racine de SMP. Pensé pour un
+  rapport ponctuel ou mensuel ; ajoute ~1-2 min de run à cause du lookup
+  DNS (~6000 résolutions parallélisées).
 
 Le rapport brief est publié quotidiennement sur
 **[sandjab.github.io/peppol](https://sandjab.github.io/peppol)** via GitHub
@@ -79,6 +84,9 @@ python generate_peppol_report.py
 --no-api              Re-rend depuis l'historique existant sans interroger l'API
 --author              Nom complet affiché dans le colophon
 --proxy               Proxy HTTP/HTTPS, format [scheme://]host[:port] (auth interactive)
+--dns-doh             Mode --detailed : résout le SML via DNS-over-HTTPS
+                      (dns.google) au lieu du resolver système. Utile derrière
+                      un firewall qui filtre le DNS sortant. Suit --proxy.
 --verbose, -v         Logs détaillés
 ```
 
@@ -102,6 +110,22 @@ versionné à la racine) :
 ```bash
 python generate_peppol_report.py --detailed --output-dir ./monthly/2026-05
 ```
+
+Le mode `--detailed` ajoute une **section « Couverture par SMP »** : top 15
+domaines de SMP triés par participants observés, avec leur couverture des
+6 doctypes obligatoires PASR §6.1 (X/6) et le nombre de participants
+distincts par doctype.
+
+**Rapport détaillé derrière un proxy d'entreprise** (cas typique Windows
+en environnement AD) — le DNS sortant est souvent filtré, ce qui fait
+échouer la résolution SML. Activer DoH (HTTPS:443, suit le proxy) :
+```bash
+python generate_peppol_report.py --detailed --no-pdf \
+    --proxy 10.38.253.65:8080 --dns-doh
+```
+Si tous les lookups échouent quand même, la section "Couverture par SMP"
+s'affiche en mode dégradé avec la cause probable et la remédiation
+suggérée — pas de section silencieusement masquée.
 
 **Re-rendu sans appeler l'API** (utile pour itérer sur le template) :
 ```bash
@@ -136,6 +160,10 @@ Le template `peppol_report_template.html.j2` est versionné à la racine
 du repo et destiné à un usage en local : la publication automatique
 quotidienne se limite au brief. Lancer le mode détaillé via
 `--detailed`, ou pointer vers un autre chemin avec `--template-detailed`.
+
+Le mode `--detailed` effectue ~6 000 lookups DNS pour résoudre les
+participants vers leurs SMPs (top 15 affichés). Compte ~1-2 min de
+résolution sur un réseau standard, plus en environnement contraint.
 
 ## Structure du JSON d'historique
 
@@ -188,13 +216,24 @@ autour des valeurs observées.
   les 1 000 premiers participants retournés, dans un ordre que l'API ne
   garantit pas aléatoire — les signatures observées peuvent donc être
   très stables d'un run à l'autre.
-- Avec moins de 8 jours d'historique, la colonne « Δ J−7 » affiche « — ».
+- Avec moins de 8 jours d'historique, la colonne « Δ J−7 » et la
+  vélocité observée 7j de l'encart PASR affichent « — ».
 - Avec 1 seul run dans l'historique, les graphiques ne s'affichent pas
   (1 point ne fait pas une courbe). Le tableau d'évolution est aussi
   masqué.
-- Le PASR France 2026.02.27 et ses obligations §6/§7 ne sont mentionnés
-  que dans le bloc « Méthode » du rapport brief — pas de verdict
-  éditorial sur la conformité.
+- L'indicateur « entités sur Peppol Directory FR » de l'encart PASR est
+  une **borne basse** : c'est le max des 6 comptages doctypes, ce qui
+  donne le nombre d'entités ayant déclaré ≥ 1 doctype. La vraie valeur
+  est entre max() et sum() — typiquement très proche du max si les PA
+  respectent le §6.1.
+- La couverture par SMP utilise une heuristique eTLD+1 pour agréger les
+  hostnames canoniques (`smp.docaposte.fr` → `docaposte.fr`). Les eTLDs
+  multi-niveaux (`.co.uk`, `.com.fr`) peuvent être sur-agrégés. Suffisant
+  pour la majorité des SMPs français (`.fr` / `.com` / `.eu`).
+- Une cellule vide dans la table SMP signifie « aucun des participants
+  de ce SMP **observés dans l'échantillon** n'a déclaré ce doctype » —
+  c'est aussi une borne basse, le SMP peut servir d'autres clients hors
+  sample avec ce format.
 
 ## Lien officiel PASR
 
