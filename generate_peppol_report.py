@@ -733,6 +733,16 @@ _SML_FQDN_SUFFIX = f".{SML_SCHEME_LABEL}.{SML_BASE_DOMAIN}"
 
 SML_LOOKUP_WORKERS = 20
 
+# DNS-over-HTTPS endpoint (Google), utilisé en fallback corp/proxy : HTTPS sur
+# 443 contourne le DNS d'entreprise et passe par HTTP_PROXIES si défini.
+DOH_URL = "https://dns.google/resolve"
+DOH_TIMEOUT_S = 10.0
+
+# Toggle global, activé via --dns-doh. Lu par participant_smp_root() — global
+# nécessaire pour rester compatible avec ThreadPoolExecutor.map() qui ne
+# transmet pas de kwargs.
+USE_DNS_DOH = False
+
 
 def _extract_participant_value(participant_id: dict | str) -> str | None:
     """Returns the part after '::' of a Peppol participant identifier.
@@ -773,26 +783,75 @@ def _smp_root_from_hostname(hostname: str) -> str:
     return ".".join(parts[-2:])
 
 
+def _doh_resolve_canonical(fqdn: str, timeout: float = DOH_TIMEOUT_S) -> str | None:
+    """Resolves fqdn via DNS-over-HTTPS (Google JSON API), returning the
+    canonical hostname after CNAME chain following. Returns None on any
+    failure (network, non-200, NXDOMAIN, malformed JSON).
+
+    Uses HTTP_PROXIES if configured, so DoH works through corporate
+    proxies that block direct DNS but allow HTTPS on 443.
+    """
+    try:
+        r = requests.get(
+            DOH_URL,
+            params={"name": fqdn, "type": "A"},
+            headers={"accept": "application/dns-json"},
+            timeout=timeout,
+            proxies=HTTP_PROXIES,
+        )
+    except requests.RequestException:
+        return None
+    if r.status_code != 200:
+        return None
+    try:
+        data = r.json()
+    except ValueError:
+        return None
+    if data.get("Status") != 0:  # 0 = NOERROR; 3 = NXDOMAIN; etc.
+        return None
+    answers = data.get("Answer") or []
+    if not answers:
+        return None
+    # Walk the answer set: the canonical name is either the name of the
+    # final A record (type=1) or the data of the final CNAME (type=5).
+    canonical: str | None = None
+    for ans in answers:
+        t = ans.get("type")
+        if t == 1:
+            canonical = ans.get("name")
+        elif t == 5:
+            canonical = ans.get("data")
+    return canonical
+
+
 def participant_smp_root(participant_id: dict | str) -> str | None:
     """Returns the SMP root domain serving a Peppol participant, or None.
 
-    Uses socket.gethostbyname_ex which follows CNAME chains and returns
-    the canonical name. Lookup failures (NXDOMAIN, no CNAME) yield None
-    — caller treats those as "unpublished / unresolved".
+    Resolves the SML FQDN and follows CNAMEs to get the SMP canonical
+    hostname. Two resolution paths:
 
-    No explicit timeout: gethostbyname_ex delegates to the OS resolver
-    (libc), which does not honor socket.setdefaulttimeout. The OS-level
-    DNS timeout (typically a few seconds with the default resolv.conf)
-    is what bounds each lookup.
+    - Default: socket.gethostbyname_ex (OS resolver via libc). Fast and
+      cache-friendly, but blocked when corp DNS doesn't reach the public
+      Peppol SML zone.
+    - USE_DNS_DOH=True: DoH (DNS-over-HTTPS) over HTTPS/443. Bypasses
+      corp DNS filtering, passes through HTTP_PROXIES if set.
+
+    Lookup failures (NXDOMAIN, network) yield None — caller treats those
+    as "unpublished / unresolved".
     """
     value = _extract_participant_value(participant_id)
     if not value:
         return None
     fqdn = _sml_fqdn(value)
-    try:
-        canonical, _aliases, _addrs = socket.gethostbyname_ex(fqdn)
-    except (socket.gaierror, socket.herror, OSError):
-        return None
+    if USE_DNS_DOH:
+        canonical = _doh_resolve_canonical(fqdn)
+        if not canonical:
+            return None
+    else:
+        try:
+            canonical, _aliases, _addrs = socket.gethostbyname_ex(fqdn)
+        except (socket.gaierror, socket.herror, OSError):
+            return None
     canonical = canonical.rstrip(".").lower()
     # If the canonical name still ends with the SML suffix, the CNAME
     # didn't escape the SML zone → not a real SMP.
@@ -834,7 +893,8 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
                 participants_per_doctype[key].add(value)
                 all_participants.add(value)
 
-    log.info("SML lookup : %d participants uniques…", len(all_participants))
+    log.info("SML lookup : %d participants uniques (%s)…",
+             len(all_participants), "DoH" if USE_DNS_DOH else "OS resolver")
 
     # 2) Resolve participant → SMP root in parallel (DNS is I/O bound).
     smp_by_participant: dict[str, str | None] = {}
@@ -847,6 +907,7 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
                 smp_by_participant[value] = root
 
     unresolved = sum(1 for r in smp_by_participant.values() if r is None)
+    resolved = len(smp_by_participant) - unresolved
 
     # 3) Aggregate per SMP root.
     per_smp: dict[str, dict[str, set[str]]] = {}
@@ -856,6 +917,15 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
             if not root:
                 continue
             per_smp.setdefault(root, {k: set() for k in doctype_keys})[key].add(value)
+
+    log.info("SML lookup terminé : %d résolus, %d non résolus, %d SMPs distincts.",
+             resolved, unresolved, len(per_smp))
+    if all_participants and resolved == 0:
+        log.warning(
+            "Aucun participant résolu via le SML. Cause probable : DNS "
+            "sortant filtré (cas typique en entreprise). Relancer avec "
+            "--dns-doh pour passer en DNS-over-HTTPS via le proxy."
+        )
 
     smps = []
     for root, by_dt in per_smp.items():
@@ -877,6 +947,8 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
         "unresolved_count": unresolved,
         "total_participants": len(all_participants),
         "doctype_order": doctype_keys,
+        "sml_zone": SML_BASE_DOMAIN,
+        "used_doh": USE_DNS_DOH,
     }
 
 
@@ -1097,6 +1169,11 @@ def main() -> int:
                              "Credentials demandés au prompt, ou via les variables "
                              "d'environnement PEPPOL_PROXY_USER / PEPPOL_PROXY_PASS "
                              "(utile en cron/CI).")
+    parser.add_argument("--dns-doh", action="store_true",
+                        help="Mode --detailed : résout le SML via DNS-over-HTTPS "
+                             "(dns.google) au lieu du resolver système. Utile en "
+                             "environnement corporatif où le DNS sortant est filtré. "
+                             "Suit la conf --proxy.")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args()
 
@@ -1139,6 +1216,13 @@ def main() -> int:
             os.environ[key] = proxy_url
         auth_state = f"avec auth ({user})" if user else "sans auth"
         log.info("Proxy actif : %s — %s", host_url, auth_state)
+
+    if args.dns_doh:
+        global USE_DNS_DOH
+        USE_DNS_DOH = True
+        log.info("SML lookup en DoH : %s%s",
+                 DOH_URL,
+                 " (via proxy)" if HTTP_PROXIES else "")
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     history_path = args.history or (args.output_dir / HISTORY_FILENAME)
