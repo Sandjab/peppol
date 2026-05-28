@@ -240,6 +240,87 @@ h2 .sub {
 .t .zero { color: var(--text-muted); }
 .t .dash { color: var(--text-muted); font-family: var(--font-mono); }
 
+/* ─── PASR COUNTDOWN ─────────────────────────── */
+.pasr-board {
+  display: grid;
+  grid-template-columns: minmax(180px, auto) 1fr;
+  gap: 28px;
+  align-items: stretch;
+  border: 1px solid var(--peppol-r200);
+  background: var(--peppol-r100);
+  padding: 22px 26px;
+  page-break-inside: avoid;
+}
+.pasr-board .countdown {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 24px;
+  border-right: 1px solid var(--peppol-r200);
+}
+.pasr-board .countdown .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 9pt;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.pasr-board .countdown .days {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: 44pt;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--peppol-red-dark);
+}
+.pasr-board .countdown .days small {
+  font-size: 12pt;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 4px;
+  letter-spacing: 0;
+}
+.pasr-board .countdown .target {
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 9pt;
+  color: var(--text-muted);
+}
+.pasr-board .countdown .target strong { color: var(--text); }
+.pasr-board .indicators {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 22px;
+  align-content: center;
+}
+.pasr-board .ind {
+  font-family: var(--font-mono);
+  font-size: 9.5pt;
+  line-height: 1.45;
+}
+.pasr-board .ind .k {
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 8.5pt;
+}
+.pasr-board .ind .v {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 11pt;
+}
+.pasr-board .ind .v .pct {
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 9pt;
+  margin-left: 6px;
+}
+.pasr-board .ind .hint {
+  color: var(--text-muted);
+  font-size: 8.5pt;
+}
+
 /* ─── CHARTS ─────────────────────────────────── */
 .charts {
   display: grid;
@@ -361,6 +442,55 @@ h2 .sub {
   </p>
 </section>
 
+<!-- ─── SECTION : COMPTE À REBOURS PASR ─── -->
+<section>
+  <h2>Avancement vs réforme CTC <span class="sub">deadline 01/09/2026 — réception obligatoire pour les entités TVA</span></h2>
+  <div class="pasr-board">
+    <div class="countdown">
+      <div class="eyebrow">J−N · cible</div>
+      <div class="days">
+        {%- if pasr.is_past_deadline -%}
+          ⏱<small>échéance passée</small>
+        {%- else -%}
+          J−{{ pasr.days_remaining }}
+        {%- endif -%}
+      </div>
+      <div class="target">
+        cible <strong>{{ pasr.deadline_short }}</strong><br>
+        (Plateformes Agréées + Peppol)
+      </div>
+    </div>
+    <div class="indicators">
+      <div class="ind">
+        <div class="k">Sur Peppol Directory FR<span class="hint"> — entités exposées (≥&nbsp;1 doctype, borne basse)</span></div>
+        <div class="v">{{ pasr.peppol_count|fr_int }}<span class="pct">{{ "%.3f"|format(pasr.pct_central)|replace('.', ',') }}&nbsp;% du PPF central</span></div>
+      </div>
+      <div class="ind">
+        <div class="k">Annuaire central PPF<span class="hint"> — DGFiP, mi-janv. 2026</span></div>
+        <div class="v">~{{ pasr.universe_central|fr_int }}<span class="pct">{{ "%.2f"|format(100.0 * pasr.universe_central / pasr.universe_vat)|replace('.', ',') }}&nbsp;% de l'univers</span></div>
+      </div>
+      <div class="ind">
+        <div class="k">Univers TVA France<span class="hint"> — DGFiP, communiqué 16/01/2026</span></div>
+        <div class="v">~{{ pasr.universe_vat|fr_int }}<span class="pct">obligation de réception au 01/09/2026</span></div>
+      </div>
+      <div class="ind">
+        <div class="k">Vélocité observée / requise<span class="hint"> — entités&nbsp;/&nbsp;jour</span></div>
+        <div class="v">
+          {%- if pasr.velocity_observed_7d is not none -%}
+            {{ pasr.velocity_observed_7d|round(0)|int|fr_int }} obs.
+          {%- else -%}
+            — obs.
+          {%- endif -%}
+          {%- if pasr.velocity_required_central is not none %}<span class="pct">/ {{ pasr.velocity_required_central|round(0)|int|fr_int }} pour PPF</span>{%- endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="margin-top:8px;font-size:9pt;color:var(--text-muted);line-height:1.55;">
+    Le PASR France §6.1 impose à toute Plateforme Agréée d'inscrire ses utilisateurs dans le Peppol Directory pour les 6 doctypes de réception ci-dessous. L'univers TVA (~10&nbsp;M) est la cible réglementaire de fin pour la réception ; l'annuaire central PPF (~600&nbsp;k mi-janvier 2026) sert de repère intermédiaire opposable, sachant qu'il agrège tous les canaux (Peppol&nbsp;+ conventions bilatérales). Notre comptage Peppol Directory est borné inférieurement&nbsp;: il vaut au moins le maximum des 6 doctypes du jour.
+  </p>
+</section>
+
 <!-- ─── SECTION : COMPTAGES BRUTS ─── -->
 <section>
   <h2>Comptages bruts du jour <span class="sub">country=FR</span></h2>
@@ -439,7 +569,7 @@ h2 .sub {
 <!-- ─── MÉTHODE ─── -->
 <section class="method">
   <h2>Méthode &amp; reproductibilité</h2>
-  <p>Données extraites de l'API publique <strong>Peppol Directory</strong> (OpenPeppol AISBL) via <code>/search/1.0/json?country=FR&amp;rpc=1</code> pour chacun des 6 doctypes France listés. Snapshot daté du <strong>{{ production_datetime_long }}</strong>.</p>
+  <p>Données extraites de l'API publique <strong>Peppol Directory</strong> (OpenPeppol AISBL) via <code>/search/1.0/json?country=FR&amp;rpc=1</code> pour chacun des 6 doctypes France listés. Ces 6 doctypes sont exactement les formats de réception obligatoires définis par le PASR France <strong>§6.1.a-f</strong> (Factur-X, UBL CIUS &amp; EXTENDED, CII CIUS &amp; EXTENDED, CDAR). Snapshot daté du <strong>{{ production_datetime_long }}</strong>.</p>
   <p>Le chiffre par doctype provient du champ <code>total-result-count</code> renvoyé par l'API (comptage exhaustif côté serveur sur l'index Directory). L'historique est conservé dans <code>peppol_history.json</code>, une entrée par jour, écrasement si re-run. Indexation Directory asynchrone&nbsp;: variations de quelques pour-cent jour à jour possibles, indépendantes des déclarations SMP réelles.</p>
   <p>Référence PASR&nbsp;: <a href="{{ pasr_url }}" target="_blank">France PASR 2026.02.27</a> (§6 et §7 — formats de réception obligatoires pour les PA).</p>
   <p>Code source et historique des données&nbsp;: <a href="https://github.com/Sandjab/peppol" target="_blank">github.com/Sandjab/peppol</a>.</p>
