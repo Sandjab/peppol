@@ -731,7 +731,6 @@ SML_SCHEME_LABEL = "iso6523-actorid-upis"
 # non publié ou SML en panne).
 _SML_FQDN_SUFFIX = f".{SML_SCHEME_LABEL}.{SML_BASE_DOMAIN}"
 
-SML_LOOKUP_TIMEOUT_S = 5.0
 SML_LOOKUP_WORKERS = 20
 
 
@@ -774,26 +773,26 @@ def _smp_root_from_hostname(hostname: str) -> str:
     return ".".join(parts[-2:])
 
 
-def participant_smp_root(participant_id: dict | str,
-                         timeout: float = SML_LOOKUP_TIMEOUT_S) -> str | None:
+def participant_smp_root(participant_id: dict | str) -> str | None:
     """Returns the SMP root domain serving a Peppol participant, or None.
 
     Uses socket.gethostbyname_ex which follows CNAME chains and returns
-    the canonical name. Lookup failures (NXDOMAIN, timeout, no CNAME)
-    yield None — caller treats those as "unpublished / unresolved".
+    the canonical name. Lookup failures (NXDOMAIN, no CNAME) yield None
+    — caller treats those as "unpublished / unresolved".
+
+    No explicit timeout: gethostbyname_ex delegates to the OS resolver
+    (libc), which does not honor socket.setdefaulttimeout. The OS-level
+    DNS timeout (typically a few seconds with the default resolv.conf)
+    is what bounds each lookup.
     """
     value = _extract_participant_value(participant_id)
     if not value:
         return None
     fqdn = _sml_fqdn(value)
-    old_timeout = socket.getdefaulttimeout()
-    socket.setdefaulttimeout(timeout)
     try:
         canonical, _aliases, _addrs = socket.gethostbyname_ex(fqdn)
     except (socket.gaierror, socket.herror, OSError):
         return None
-    finally:
-        socket.setdefaulttimeout(old_timeout)
     canonical = canonical.rstrip(".").lower()
     # If the canonical name still ends with the SML suffix, the CNAME
     # didn't escape the SML zone → not a real SMP.
