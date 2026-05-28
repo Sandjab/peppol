@@ -744,28 +744,53 @@ DOH_TIMEOUT_S = 10.0
 USE_DNS_DOH = False
 
 
-def _extract_participant_value(participant_id: dict | str) -> str | None:
-    """Returns the part after '::' of a Peppol participant identifier.
+def _canonical_participant_id(participant_id: dict | str) -> str | None:
+    """Returns the canonical "scheme::value" form of a Peppol participant
+    identifier, lowercased — the exact input expected by the SML hash
+    construction (cf. Peppol Policy for use of Identifiers v4, §4 "SML
+    DNS hash").
 
-    Accepts either {"scheme": "...", "value": "..."} or a raw string
-    "scheme::value". Returns the lowercase value or None if invalid.
+    Accepts either {"scheme": "...", "value": "..."} (the shape Peppol
+    Directory returns) or a raw "scheme::value" string. Returns None
+    if either part is missing.
+
+    NB: hashing only the value (without the scheme prefix) yields a
+    different MD5 and the SML returns NXDOMAIN systematically — that
+    was the bug observed in --detailed runs before this function was
+    fixed to use the canonical form.
     """
     if isinstance(participant_id, dict):
+        scheme = participant_id.get("scheme")
         value = participant_id.get("value")
+        if not isinstance(scheme, str) or not scheme:
+            return None
         if not isinstance(value, str) or not value:
             return None
-        return value.lower()
+        return f"{scheme}::{value}".lower()
     if isinstance(participant_id, str):
-        _, sep, value = participant_id.partition("::")
-        value = (value if sep else participant_id).strip().lower()
-        return value or None
+        raw = participant_id.strip().lower()
+        if not raw or "::" not in raw:
+            return None
+        scheme, _, value = raw.partition("::")
+        if not scheme or not value:
+            return None
+        return f"{scheme}::{value}"
     return None
 
 
-def _sml_fqdn(participant_value: str) -> str:
-    """Builds the SML lookup FQDN for a lowercase participant value."""
-    h = hashlib.md5(participant_value.encode("utf-8")).hexdigest()
-    return f"B-{h}.{SML_SCHEME_LABEL}.{SML_BASE_DOMAIN}"
+def _sml_fqdn(canonical_id: str) -> str:
+    """Builds the SML lookup FQDN for a canonical Peppol participant id.
+
+    Input must be the full "scheme::value" form, lowercased (cf.
+    _canonical_participant_id). Hashing only the value half — what a
+    previous version of this code did — yields the wrong DNS name and
+    NXDOMAIN on every lookup.
+    """
+    h = hashlib.md5(canonical_id.encode("utf-8")).hexdigest()
+    # Extract the scheme part for the DNS label; for Peppol participants
+    # this is always "iso6523-actorid-upis" in production.
+    scheme, _, _ = canonical_id.partition("::")
+    return f"B-{h}.{scheme}.{SML_BASE_DOMAIN}"
 
 
 def _smp_root_from_hostname(hostname: str) -> str:
@@ -879,10 +904,10 @@ def participant_smp_root(participant_id: dict | str) -> str | None:
     Lookup failures (NXDOMAIN, network) yield None — caller treats those
     as "unpublished / unresolved".
     """
-    value = _extract_participant_value(participant_id)
-    if not value:
+    canonical = _canonical_participant_id(participant_id)
+    if not canonical:
         return None
-    fqdn = _sml_fqdn(value)
+    fqdn = _sml_fqdn(canonical)
     if USE_DNS_DOH:
         canonical = _doh_resolve_canonical(fqdn)
         if not canonical:
@@ -928,10 +953,10 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
     all_participants: set[str] = set()
     for key in doctype_keys:
         for m in samples_by_doctype.get(key, []):
-            value = _extract_participant_value(m.get("participantID"))
-            if value:
-                participants_per_doctype[key].add(value)
-                all_participants.add(value)
+            canonical = _canonical_participant_id(m.get("participantID"))
+            if canonical:
+                participants_per_doctype[key].add(canonical)
+                all_participants.add(canonical)
 
     global _DOH_FIRST_ERROR_LOGGED
     _DOH_FIRST_ERROR_LOGGED = False
