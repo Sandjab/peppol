@@ -191,18 +191,66 @@ class TestDohResolveCanonical:
         return {"participantID": {"scheme": "iso6523-actorid-upis", "value": value}}
 
     def test_resolves_canonical_from_cname_then_a(self, monkeypatch):
+        fqdn = "b-xxx.iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
         payload = {
             "Status": 0,
             "Answer": [
-                {"name": "b-xxx.iso6523-actorid-upis.edelivery.tech.ec.europa.eu.",
-                 "type": 5, "data": "smp-prod.docaposte.fr."},
+                {"name": f"{fqdn}.", "type": 5, "data": "smp-prod.docaposte.fr."},
                 {"name": "smp-prod.docaposte.fr.", "type": 1, "data": "1.2.3.4"},
             ],
         }
         monkeypatch.setattr(m.requests, "get",
                             lambda *a, **kw: _FakeDohResp(200, payload))
-        # Final canonical comes from the A record's name.
-        assert m._doh_resolve_canonical("anything.example") == "smp-prod.docaposte.fr."
+        # Chain walk: fqdn → CNAME → smp-prod.docaposte.fr.
+        assert m._doh_resolve_canonical(fqdn) == "smp-prod.docaposte.fr"
+
+    def test_multi_hop_cname_chain(self, monkeypatch):
+        # fqdn → mid.example. → final-smp.example.com.
+        fqdn = "b-yyy.iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": "final-smp.example.com.", "type": 1, "data": "5.6.7.8"},
+                {"name": "mid.example.", "type": 5, "data": "final-smp.example.com."},
+                {"name": f"{fqdn}.", "type": 5, "data": "mid.example."},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        assert m._doh_resolve_canonical(fqdn) == "final-smp.example.com"
+
+    def test_ignores_unrelated_records(self, monkeypatch):
+        # Resolver returned a sibling A record not part of our chain — must
+        # not be picked as canonical.
+        fqdn = "b-zzz.iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": f"{fqdn}.", "type": 5, "data": "smp.example.fr."},
+                {"name": "smp.example.fr.", "type": 1, "data": "1.1.1.1"},
+                # Unrelated record (additional section leak):
+                {"name": "unrelated.example.net.", "type": 1, "data": "9.9.9.9"},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        assert m._doh_resolve_canonical(fqdn) == "smp.example.fr"
+
+    def test_cycle_protection(self, monkeypatch):
+        # Pathological CNAME loop — must not hang.
+        fqdn = "loop.example"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": "loop.example.", "type": 5, "data": "a.example."},
+                {"name": "a.example.",    "type": 5, "data": "loop.example."},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        # Returns one of the names in the cycle, doesn't loop forever.
+        result = m._doh_resolve_canonical(fqdn)
+        assert result in {"loop.example", "a.example"}
 
     def test_returns_none_on_nxdomain(self, monkeypatch):
         payload = {"Status": 3, "Answer": []}

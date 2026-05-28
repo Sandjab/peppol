@@ -812,16 +812,25 @@ def _doh_resolve_canonical(fqdn: str, timeout: float = DOH_TIMEOUT_S) -> str | N
     answers = data.get("Answer") or []
     if not answers:
         return None
-    # Walk the answer set: the canonical name is either the name of the
-    # final A record (type=1) or the data of the final CNAME (type=5).
-    canonical: str | None = None
+    # Build a CNAME map (name → target) from the Answer set, then walk the
+    # chain starting from the queried FQDN. This is robust to:
+    # - records out of order
+    # - additional records unrelated to the chain (DNSSEC RRSIG, etc.)
+    # - resolvers that include extra A records for sibling names
+    cnames: dict[str, str] = {}
     for ans in answers:
-        t = ans.get("type")
-        if t == 1:
-            canonical = ans.get("name")
-        elif t == 5:
-            canonical = ans.get("data")
-    return canonical
+        if ans.get("type") != 5:  # CNAME
+            continue
+        name = str(ans.get("name") or "").rstrip(".").lower()
+        target = str(ans.get("data") or "").rstrip(".").lower()
+        if name and target:
+            cnames[name] = target
+    current = fqdn.rstrip(".").lower()
+    visited: set[str] = set()
+    while current in cnames and current not in visited:
+        visited.add(current)
+        current = cnames[current]
+    return current
 
 
 def participant_smp_root(participant_id: dict | str) -> str | None:
