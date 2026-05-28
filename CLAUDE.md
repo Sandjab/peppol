@@ -16,6 +16,12 @@ quotidien d'adoption des doctypes France (UBL/CII CIUS & EXTENDED, Factur-X, CDA
   pour permettre l'exécution en local. Le pipeline automatique ne l'utilise
   pas (publication limitée au brief).
 
+Le mode `--detailed` inclut une section **« Couverture par SMP »** qui
+résout chaque participant via le SML (DNS public Peppol, stdlib `socket`)
+pour agréger la palette de doctypes par domaine racine de SMP. ~6000
+lookups DNS en thread pool, 1-2 min de run. Réservé au mode `--detailed`
+(non joué en CI).
+
 ## Commandes utiles
 
 ```bash
