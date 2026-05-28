@@ -724,7 +724,10 @@ def analyze_cohort(matches: list[dict], top_n: int = 2) -> CohortStats:
 #
 # On suit le CNAME via socket.gethostbyname_ex() (stdlib uniquement).
 
-SML_BASE_DOMAIN = "edelivery.tech.ec.europa.eu"
+# SML zone Peppol Production (in-house OpenPeppol depuis avril 2026, après
+# migration depuis l'ancienne zone CEF eDelivery edelivery.tech.ec.europa.eu —
+# cf. SML Insourcing 2026, deadline SMP 31/05/2026, AP Lookup 31/08/2026).
+SML_BASE_DOMAIN = "participant.sml.prod.tech.peppol.org"
 SML_SCHEME_LABEL = "iso6523-actorid-upis"
 # Domaine du SML lui-même : on ne veut pas l'afficher comme un "SMP".
 # Sert à filtrer les résolutions qui n'ont pas suivi de CNAME (= participant

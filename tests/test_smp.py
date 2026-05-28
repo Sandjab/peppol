@@ -44,14 +44,15 @@ class TestSmlFqdn:
         """FQDN must be B-{md5_hex_of_lowercase_canonical_id}.{scheme}.{SML zone}.
 
         Per Peppol Policy for use of Identifiers v4 §4 the MD5 input is the
-        full "scheme::value" canonical form, not just the value.
+        full "scheme::value" canonical form, not just the value. The SML
+        zone is the in-house OpenPeppol Production zone (post-2026 migration).
         """
         canonical = "iso6523-actorid-upis::0225:920227972"
         expected_hash = hashlib.md5(canonical.encode("utf-8")).hexdigest()
         fqdn = m._sml_fqdn(canonical)
         assert fqdn.lower() == (
             f"b-{expected_hash}.iso6523-actorid-upis."
-            f"edelivery.tech.ec.europa.eu"
+            f"participant.sml.prod.tech.peppol.org"
         )
 
     def test_known_hash_for_real_participant(self):
@@ -61,7 +62,7 @@ class TestSmlFqdn:
         fqdn = m._sml_fqdn(canonical)
         assert fqdn == (
             "B-05ae1c242563ef99b43c016365a517a0"
-            ".iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
+            ".iso6523-actorid-upis.participant.sml.prod.tech.peppol.org"
         )
 
     def test_scheme_from_input_appears_in_fqdn(self):
