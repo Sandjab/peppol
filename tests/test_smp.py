@@ -168,3 +168,143 @@ class TestCollectSmpCoverage:
         assert result["smps"] == []
         assert result["unresolved_count"] == 0
         assert result["total_participants"] == 0
+
+    def test_returns_sml_zone_and_doh_flag(self, monkeypatch):
+        result = m.collect_smp_coverage({k: [] for k in m.DOCTYPES_FR})
+        assert result["sml_zone"] == m.SML_BASE_DOMAIN
+        assert result["used_doh"] == m.USE_DNS_DOH
+
+
+class _FakeDohResp:
+    def __init__(self, status, payload=None):
+        self.status_code = status
+        self._payload = payload
+
+    def json(self):
+        if isinstance(self._payload, Exception):
+            raise self._payload
+        return self._payload
+
+
+class TestDohResolveCanonical:
+    def _match(self, value: str) -> dict:
+        return {"participantID": {"scheme": "iso6523-actorid-upis", "value": value}}
+
+    def test_resolves_canonical_from_cname_then_a(self, monkeypatch):
+        fqdn = "b-xxx.iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": f"{fqdn}.", "type": 5, "data": "smp-prod.docaposte.fr."},
+                {"name": "smp-prod.docaposte.fr.", "type": 1, "data": "1.2.3.4"},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        # Chain walk: fqdn → CNAME → smp-prod.docaposte.fr.
+        assert m._doh_resolve_canonical(fqdn) == "smp-prod.docaposte.fr"
+
+    def test_multi_hop_cname_chain(self, monkeypatch):
+        # fqdn → mid.example. → final-smp.example.com.
+        fqdn = "b-yyy.iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": "final-smp.example.com.", "type": 1, "data": "5.6.7.8"},
+                {"name": "mid.example.", "type": 5, "data": "final-smp.example.com."},
+                {"name": f"{fqdn}.", "type": 5, "data": "mid.example."},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        assert m._doh_resolve_canonical(fqdn) == "final-smp.example.com"
+
+    def test_ignores_unrelated_records(self, monkeypatch):
+        # Resolver returned a sibling A record not part of our chain — must
+        # not be picked as canonical.
+        fqdn = "b-zzz.iso6523-actorid-upis.edelivery.tech.ec.europa.eu"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": f"{fqdn}.", "type": 5, "data": "smp.example.fr."},
+                {"name": "smp.example.fr.", "type": 1, "data": "1.1.1.1"},
+                # Unrelated record (additional section leak):
+                {"name": "unrelated.example.net.", "type": 1, "data": "9.9.9.9"},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        assert m._doh_resolve_canonical(fqdn) == "smp.example.fr"
+
+    def test_cycle_protection(self, monkeypatch):
+        # Pathological CNAME loop — must not hang.
+        fqdn = "loop.example"
+        payload = {
+            "Status": 0,
+            "Answer": [
+                {"name": "loop.example.", "type": 5, "data": "a.example."},
+                {"name": "a.example.",    "type": 5, "data": "loop.example."},
+            ],
+        }
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        # Returns one of the names in the cycle, doesn't loop forever.
+        result = m._doh_resolve_canonical(fqdn)
+        assert result in {"loop.example", "a.example"}
+
+    def test_returns_none_on_nxdomain(self, monkeypatch):
+        payload = {"Status": 3, "Answer": []}
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, payload))
+        assert m._doh_resolve_canonical("x.example") is None
+
+    def test_returns_none_on_non_200(self, monkeypatch):
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(503, {}))
+        assert m._doh_resolve_canonical("x.example") is None
+
+    def test_returns_none_on_request_exception(self, monkeypatch):
+        def boom(*a, **kw):
+            raise m.requests.ConnectionError("net down")
+        monkeypatch.setattr(m.requests, "get", boom)
+        assert m._doh_resolve_canonical("x.example") is None
+
+    def test_returns_none_on_malformed_json(self, monkeypatch):
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, ValueError("bad")))
+        assert m._doh_resolve_canonical("x.example") is None
+
+    def test_returns_none_on_empty_answer(self, monkeypatch):
+        monkeypatch.setattr(m.requests, "get",
+                            lambda *a, **kw: _FakeDohResp(200, {"Status": 0, "Answer": []}))
+        assert m._doh_resolve_canonical("x.example") is None
+
+
+class TestParticipantSmpRootDohPath:
+    def test_uses_doh_when_global_is_set(self, monkeypatch):
+        # Switch to DoH; ensure socket.gethostbyname_ex is NOT called.
+        socket_called = {"hit": False}
+        def fake_socket(*a, **kw):
+            socket_called["hit"] = True
+            raise AssertionError("should not be called when USE_DNS_DOH=True")
+        monkeypatch.setattr(m.socket, "gethostbyname_ex", fake_socket)
+        monkeypatch.setattr(m, "_doh_resolve_canonical",
+                            lambda fqdn, **kw: "smp.docaposte.fr.")
+        monkeypatch.setattr(m, "USE_DNS_DOH", True)
+        result = m.participant_smp_root("iso6523-actorid-upis::0225:siren:1")
+        assert result == "docaposte.fr"
+        assert socket_called["hit"] is False
+
+    def test_doh_failure_yields_none(self, monkeypatch):
+        monkeypatch.setattr(m, "_doh_resolve_canonical", lambda fqdn, **kw: None)
+        monkeypatch.setattr(m, "USE_DNS_DOH", True)
+        assert m.participant_smp_root("iso6523-actorid-upis::0225:siren:1") is None
+
+    def test_doh_canonical_in_sml_zone_yields_none(self, monkeypatch):
+        # If DoH returns a name still inside the SML zone, it's not a real SMP.
+        monkeypatch.setattr(
+            m, "_doh_resolve_canonical",
+            lambda fqdn, **kw: f"b-deadbeef.{m.SML_SCHEME_LABEL}.{m.SML_BASE_DOMAIN}.",
+        )
+        monkeypatch.setattr(m, "USE_DNS_DOH", True)
+        assert m.participant_smp_root("iso6523-actorid-upis::0225:siren:1") is None

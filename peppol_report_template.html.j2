@@ -572,6 +572,21 @@ p.body { max-width: 70ch; color: #2a2a2a; }
   font-size: 11px;
   color: var(--text-muted);
 }
+.smp-empty {
+  border-left: 4px solid var(--peppol-red);
+  background: var(--peppol-r100);
+  padding: 18px 24px;
+  margin-top: 24px;
+}
+.smp-empty p { margin-bottom: 10px; max-width: 78ch; }
+.smp-empty p:last-child { margin-bottom: 0; }
+.smp-empty code {
+  background: var(--bg);
+  padding: 1px 6px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  border: 1px solid var(--border);
+}
 
 .doctype-table {
   margin-top: 24px;
@@ -1591,6 +1606,20 @@ p.body { max-width: 70ch; color: #2a2a2a; }
   <p class="body" style="margin-top:18px;">
     <strong>Lecture&nbsp;:</strong> un SMP affichant <em>6/6</em> respecte le PASR §6.1 pour les clients vus dans nos échantillons. Un SMP affichant <em>1/6</em> ou <em>2/6</em> traduit soit une couverture partielle réelle (palette héritée pré-PASR), soit un échantillonnage trop faible si <em>Observés</em> est petit (&lt; 20 environ). L'écart entre couverture déclarative et capacité technique réelle peut être résorbé par une mise à jour de SMP côté PA, sans changement infra.
   </p>
+</section>
+{%- elif smp_coverage and smp_coverage.total_participants > 0 %}
+<section class="section">
+  <div class="section-header">
+    <div class="section-number">06</div>
+    <div class="section-title-block">
+      <div class="section-eyebrow">Couverture côté offre</div>
+      <h2>Couverture par SMP — non collectée</h2>
+    </div>
+  </div>
+  <div class="smp-empty">
+    <p><strong>Aucun des {{ smp_coverage.total_participants|fr_int }} participants échantillonnés n'a pu être résolu via le SML.</strong></p>
+    <p>Le Peppol Directory n'expose pas le SMP par participant&nbsp;; on reconstruit ce lien par lookup DNS sur la zone publique <code>{{ smp_coverage.sml_zone }}</code>. Si toutes les résolutions échouent, c'est généralement que le DNS sortant est filtré (poste derrière un firewall d'entreprise, par exemple). {% if smp_coverage.used_doh %}<em>DoH déjà actif</em> — vérifier la connectivité HTTPS vers <code>dns.google</code> via le proxy.{% else %}Relancer avec <code>--dns-doh</code> pour passer en DNS-over-HTTPS sur 443 (suit la conf <code>--proxy</code> si présente).{% endif %}</p>
+  </div>
 </section>
 {%- endif %}
 
