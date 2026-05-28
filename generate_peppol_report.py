@@ -790,6 +790,11 @@ def _doh_resolve_canonical(fqdn: str, timeout: float = DOH_TIMEOUT_S) -> str | N
 
     Uses HTTP_PROXIES if configured, so DoH works through corporate
     proxies that block direct DNS but allow HTTPS on 443.
+
+    On the very first call, any RequestException is logged at WARNING
+    level (with type + short message) so the user gets a real diagnostic
+    rather than a silent batch of zeroes. Subsequent failures are
+    counted but not logged (to avoid spamming on a 2000-call batch).
     """
     try:
         r = requests.get(
@@ -799,13 +804,19 @@ def _doh_resolve_canonical(fqdn: str, timeout: float = DOH_TIMEOUT_S) -> str | N
             timeout=timeout,
             proxies=HTTP_PROXIES,
         )
-    except requests.RequestException:
+    except requests.RequestException as e:
+        _doh_first_error_once(e)
         return None
     if r.status_code != 200:
+        _doh_first_error_once(
+            RuntimeError(f"HTTP {r.status_code} from {DOH_URL} "
+                         f"(body[:120]={r.text[:120]!r})")
+        )
         return None
     try:
         data = r.json()
-    except ValueError:
+    except ValueError as e:
+        _doh_first_error_once(e)
         return None
     if data.get("Status") != 0:  # 0 = NOERROR; 3 = NXDOMAIN; etc.
         return None
@@ -831,6 +842,26 @@ def _doh_resolve_canonical(fqdn: str, timeout: float = DOH_TIMEOUT_S) -> str | N
         visited.add(current)
         current = cnames[current]
     return current
+
+
+_DOH_FIRST_ERROR_LOGGED = False
+
+
+def _doh_first_error_once(err: Exception) -> None:
+    """Logs the first DoH error encountered in a batch, then stays silent.
+
+    Threadsafe-ish: the flag may be set concurrently by 20 workers; the
+    worst case is logging the error 2-3 times instead of once, which is
+    acceptable.
+    """
+    global _DOH_FIRST_ERROR_LOGGED
+    if _DOH_FIRST_ERROR_LOGGED:
+        return
+    _DOH_FIRST_ERROR_LOGGED = True
+    log = logging.getLogger("peppol")
+    log.warning("DoH lookup KO (%s): %s — toutes les résolutions DoH "
+                "vont probablement échouer.",
+                type(err).__name__, str(err)[:180])
 
 
 def participant_smp_root(participant_id: dict | str) -> str | None:
@@ -902,6 +933,9 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
                 participants_per_doctype[key].add(value)
                 all_participants.add(value)
 
+    global _DOH_FIRST_ERROR_LOGGED
+    _DOH_FIRST_ERROR_LOGGED = False
+
     log.info("SML lookup : %d participants uniques (%s)…",
              len(all_participants), "DoH" if USE_DNS_DOH else "OS resolver")
 
@@ -930,11 +964,21 @@ def collect_smp_coverage(samples_by_doctype: dict[str, list[dict]]) -> dict:
     log.info("SML lookup terminé : %d résolus, %d non résolus, %d SMPs distincts.",
              resolved, unresolved, len(per_smp))
     if all_participants and resolved == 0:
-        log.warning(
-            "Aucun participant résolu via le SML. Cause probable : DNS "
-            "sortant filtré (cas typique en entreprise). Relancer avec "
-            "--dns-doh pour passer en DNS-over-HTTPS via le proxy."
-        )
+        if USE_DNS_DOH:
+            log.warning(
+                "Aucun participant résolu via le SML, alors que --dns-doh "
+                "est actif. Causes probables : (1) HTTPS bloqué vers "
+                "dns.google par le proxy, (2) MITM SSL d'entreprise (cert "
+                "racine inconnu de Python — voir REQUESTS_CA_BUNDLE), ou "
+                "(3) DoH lui-même filtré. Voir le premier message DoH KO "
+                "ci-dessus pour le type d'erreur."
+            )
+        else:
+            log.warning(
+                "Aucun participant résolu via le SML. Cause probable : DNS "
+                "sortant filtré (cas typique en entreprise). Relancer avec "
+                "--dns-doh pour passer en DNS-over-HTTPS via le proxy."
+            )
 
     smps = []
     for root, by_dt in per_smp.items():
