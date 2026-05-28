@@ -342,6 +342,88 @@ h3:first-child { margin-top: 0; }
 p { margin-bottom: 1em; }
 p.body { max-width: 70ch; color: #2a2a2a; }
 
+/* ════ PASR COUNTDOWN ════════════════════════════════ */
+.pasr-board {
+  display: grid;
+  grid-template-columns: minmax(200px, auto) 1fr;
+  gap: 32px;
+  align-items: stretch;
+  border: 1px solid var(--peppol-r200);
+  background: var(--peppol-r100);
+  padding: 28px 32px;
+  margin-top: 32px;
+  page-break-inside: avoid;
+}
+.pasr-board .countdown {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding-right: 28px;
+  border-right: 1px solid var(--peppol-r200);
+}
+.pasr-board .countdown .eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.pasr-board .countdown .days {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: clamp(46px, 5.5vw, 72px);
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--peppol-red-dark);
+}
+.pasr-board .countdown .days small {
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--text-muted);
+  margin-left: 6px;
+  letter-spacing: 0;
+}
+.pasr-board .countdown .target {
+  margin-top: 10px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.pasr-board .countdown .target strong { color: var(--text); }
+.pasr-board .indicators {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 24px;
+  align-content: center;
+}
+.pasr-board .ind { font-family: var(--font-mono); font-size: 13px; line-height: 1.45; }
+.pasr-board .ind .k {
+  color: var(--text-muted);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+.pasr-board .ind .v {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 18px;
+  margin-top: 2px;
+}
+.pasr-board .ind .v .pct {
+  color: var(--accent);
+  font-weight: 500;
+  font-size: 13px;
+  margin-left: 8px;
+}
+.pasr-board .ind .hint {
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
 /* ════ KPI ═══════════════════════════════════════════ */
 .kpi-grid {
   display: grid;
@@ -1081,6 +1163,55 @@ p.body { max-width: 70ch; color: #2a2a2a; }
     <span>Méthode : Comptage exhaustif via /search/1.0/json</span>
     <span>Périmètre : country=FR</span>
   </div>
+</section>
+
+<!-- ════ PASR COUNTDOWN ═════════════════════════════════ -->
+<section>
+  <div class="pasr-board">
+    <div class="countdown">
+      <div class="eyebrow">Réforme CTC · J−N</div>
+      <div class="days">
+        {%- if pasr.is_past_deadline -%}
+          ⏱<small>échéance passée</small>
+        {%- else -%}
+          J−{{ pasr.days_remaining }}
+        {%- endif -%}
+      </div>
+      <div class="target">
+        cible <strong>{{ pasr.deadline_short }}</strong><br>
+        réception obligatoire pour toute entité TVA<br>
+        (canal : Plateformes Agréées + Peppol)
+      </div>
+    </div>
+    <div class="indicators">
+      <div class="ind">
+        <div class="k">Sur Peppol Directory FR <span class="hint">— entités exposées (≥&nbsp;1 doctype)</span></div>
+        <div class="v">{{ pasr.peppol_count|fr_int }}<span class="pct">{{ "%.3f"|format(pasr.pct_central)|replace('.', ',') }}&nbsp;% du PPF central</span></div>
+      </div>
+      <div class="ind">
+        <div class="k">Annuaire central PPF <span class="hint">— DGFiP, mi-janv. 2026</span></div>
+        <div class="v">~{{ pasr.universe_central|fr_int }}<span class="pct">{{ "%.2f"|format(100.0 * pasr.universe_central / pasr.universe_vat)|replace('.', ',') }}&nbsp;% de l'univers</span></div>
+      </div>
+      <div class="ind">
+        <div class="k">Univers TVA France <span class="hint">— DGFiP, communiqué 16/01/2026</span></div>
+        <div class="v">~{{ pasr.universe_vat|fr_int }}<span class="pct">obligation au 01/09/2026</span></div>
+      </div>
+      <div class="ind">
+        <div class="k">Vélocité observée / requise <span class="hint">— entités&nbsp;/&nbsp;jour</span></div>
+        <div class="v">
+          {%- if pasr.velocity_observed_7d is not none -%}
+            {{ pasr.velocity_observed_7d|round(0)|int|fr_int }} obs.
+          {%- else -%}
+            — obs.
+          {%- endif -%}
+          {%- if pasr.velocity_required_central is not none %}<span class="pct">/ {{ pasr.velocity_required_central|round(0)|int|fr_int }} pour PPF</span>{%- endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="body" style="margin-top:14px;font-size:13px;color:var(--text-muted);max-width:none;">
+    Le PASR France §6.1 impose à toute Plateforme Agréée d'inscrire ses utilisateurs dans le Peppol Directory pour chacun des 6 doctypes de réception. L'univers TVA (~10&nbsp;M) est la cible réglementaire ; l'annuaire central PPF (~600&nbsp;k mi-janvier 2026) sert de repère intermédiaire, sachant qu'il agrège tous les canaux (Peppol&nbsp;+ conventions bilatérales). Notre comptage Peppol est borné inférieurement&nbsp;: il vaut au moins le maximum des 6 doctypes du jour.
+  </p>
 </section>
 
 <!-- ════ SECTION 01 ═════════════════════════════════════ -->

@@ -69,6 +69,14 @@ DEFAULT_SAMPLE_SIZE = 1000
 SCHEME = "busdox-docid-qns"
 HISTORY_FILENAME = "peppol_history.json"
 
+# Réforme française CTC : obligation de réception pour toutes les entités
+# assujetties à la TVA au 1er septembre 2026.
+PASR_DEADLINE = date(2026, 9, 1)
+# Univers TVA en France (DGFiP, communiqué 16/01/2026).
+UNIVERSE_VAT_ENTITIES = 10_000_000
+# Annuaire central PPF (DGFiP) — entités déjà inscrites à mi-janvier 2026.
+UNIVERSE_CENTRAL_DIRECTORY = 600_000
+
 HTTP_RETRY_ATTEMPTS = 3
 HTTP_RETRY_BACKOFF_S = (1.0, 2.0, 4.0)
 
@@ -315,6 +323,68 @@ def build_counts_rows(counts_fr: dict[str, int]) -> list[dict]:
         "key": k, "label": m["label"], "urn_short": m["urn_short"],
         "ext": m["ext"], "value": counts_fr.get(k, 0),
     } for k, m in DOCTYPES_FR.items()]
+
+
+# ════════════════════════════════════════════════════════════════════
+#  Compte à rebours PASR 01/09/2026
+# ════════════════════════════════════════════════════════════════════
+
+def build_pasr_context(history: dict, today_d: date) -> dict:
+    """
+    Calcule les indicateurs « avancement vs réforme CTC 01/09/2026 ».
+
+    - days_remaining : J−N (négatif si la deadline est passée).
+    - peppol_count : nombre d'entités françaises exposées sur ≥1 des 6
+      doctypes PASR. Approximé par max(counts du jour) : une entité doit
+      au minimum exposer un format de réception (§6.1 PASR), donc max =
+      borne basse fiable du nombre d'entités uniques (la vraie valeur est
+      entre max() et sum() — typiquement très proche du max si les PA
+      respectent le §6.1).
+    - velocity_observed_7d : entités/jour moyennes sur 7 jours réels
+      (ou None si l'historique est trop court).
+    - velocity_required_central : entités/jour requises pour égaler le
+      stock annuaire central PPF (~600 k) à la deadline.
+    - velocity_required_vat : idem pour atteindre l'univers TVA (~10 M).
+    - pct_central, pct_vat : avancement actuel en % des deux univers.
+    """
+    today_count = history["runs"].get(today_d.isoformat(), {}).get("counts_fr", {})
+    peppol_count = max(today_count.values()) if today_count else 0
+
+    days_remaining = (PASR_DEADLINE - today_d).days
+
+    # Vélocité observée : delta vs J−7 réel (ou point le plus proche).
+    velocity_observed = None
+    ref_d = closest_run_at_or_before(history, today_d - timedelta(days=7))
+    if ref_d is not None and ref_d != today_d:
+        ref_counts = history["runs"][ref_d.isoformat()].get("counts_fr", {})
+        if ref_counts:
+            ref_peppol = max(ref_counts.values())
+            gap_days = (today_d - ref_d).days
+            if gap_days > 0:
+                velocity_observed = (peppol_count - ref_peppol) / gap_days
+
+    def required(target: int) -> float | None:
+        if days_remaining <= 0:
+            return None
+        remaining = max(0, target - peppol_count)
+        return remaining / days_remaining
+
+    return {
+        "deadline_iso": PASR_DEADLINE.isoformat(),
+        "deadline_short": fr_date(PASR_DEADLINE),
+        "days_remaining": days_remaining,
+        "is_past_deadline": days_remaining < 0,
+        "peppol_count": peppol_count,
+        "universe_vat": UNIVERSE_VAT_ENTITIES,
+        "universe_central": UNIVERSE_CENTRAL_DIRECTORY,
+        "pct_central": (100.0 * peppol_count / UNIVERSE_CENTRAL_DIRECTORY)
+                       if UNIVERSE_CENTRAL_DIRECTORY else 0.0,
+        "pct_vat": (100.0 * peppol_count / UNIVERSE_VAT_ENTITIES)
+                   if UNIVERSE_VAT_ENTITIES else 0.0,
+        "velocity_observed_7d": velocity_observed,
+        "velocity_required_central": required(UNIVERSE_CENTRAL_DIRECTORY),
+        "velocity_required_vat": required(UNIVERSE_VAT_ENTITIES),
+    }
 
 
 # ════════════════════════════════════════════════════════════════════
@@ -728,6 +798,7 @@ def render_brief(history: dict, today_key: str, *, template_path: Path, author_f
 
     dates = sorted_dates(history)
     evo = build_evolution(history, today_key)
+    pasr = build_pasr_context(history, today_d)
     now_paris = datetime.now(PARIS_TZ)
     return env.get_template(template_path.name).render(
         author_full=author_full,
@@ -746,6 +817,7 @@ def render_brief(history: dict, today_key: str, *, template_path: Path, author_f
         date_range_end=dates[-1].isoformat(),
         date_range_start_short=fr_date(dates[0]),
         date_range_end_short=fr_date(dates[-1]),
+        pasr=pasr,
         pasr_url=PASR_URL,
     )
 
@@ -776,12 +848,18 @@ def render_detailed(detailed_stats: dict, today_key: str, *, template_path: Path
     env.filters["nbsp"] = nbsp
     today_d = date.fromisoformat(today_key)
     now_paris = datetime.now(PARIS_TZ)
+    # En --detailed le store d'historique n'est pas forcément alimenté ;
+    # on injecte le comptage du jour pour que build_pasr_context() puisse
+    # lire un max() cohérent.
+    pasr_history = {"runs": {today_key: {"counts_fr": {k: v["fr"] for k, v in counts.items() if k in DOCTYPES_FR}}}}
+    pasr = build_pasr_context(pasr_history, today_d)
     return env.get_template(template_path.name).render(
         author_full=author_full,
         author_short=_short_author(author_full),
         production_date_short=fr_date(today_d),
         production_time_short=now_paris.strftime("%H:%M:%S"),
         production_datetime_long=fr_datetime(now_paris),
+        pasr=pasr,
         counts=counts,
         doctype_bars=doctype_bars,
         gap=gap,
