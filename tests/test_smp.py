@@ -176,9 +176,10 @@ class TestCollectSmpCoverage:
 
 
 class _FakeDohResp:
-    def __init__(self, status, payload=None):
+    def __init__(self, status, payload=None, text=""):
         self.status_code = status
         self._payload = payload
+        self.text = text
 
     def json(self):
         if isinstance(self._payload, Exception):
