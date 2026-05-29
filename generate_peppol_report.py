@@ -507,9 +507,14 @@ def render_svg_volumes(history: dict, width: int = 800, height: int = 360) -> st
             f"{'M' if i == 0 else 'L'}{x_for(d):.1f},{y_for(v):.1f}"
             for i, (d, v) in enumerate(pts)
         )
-        dash = f' stroke-dasharray="{style["dash"]}"' if style["dash"] != "none" else ""
+        dashed = style["dash"] != "none"
+        dash = f' stroke-dasharray="{style["dash"]}"' if dashed else ""
+        # Bouts droits sur les pointillés : un linecap arrondi rallonge chaque
+        # tiret d'une demi-épaisseur de part et d'autre, ce qui ronge le trou
+        # et masque la courbe sous-jacente (orange recouvrant le rouge).
+        linecap = "butt" if dashed else "round"
         out.append(f'<path d="{path_d}" fill="none" stroke="{style["color"]}" '
-                   f'stroke-width="{style["width"]}"{dash} stroke-linecap="round" stroke-linejoin="round"/>')
+                   f'stroke-width="{style["width"]}"{dash} stroke-linecap="{linecap}" stroke-linejoin="round"/>')
         for d, v in pts:
             out.append(f'<circle cx="{x_for(d):.1f}" cy="{y_for(v):.1f}" r="2.2" fill="{style["color"]}"/>')
 
