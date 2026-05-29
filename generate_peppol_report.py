@@ -160,8 +160,8 @@ DOCTYPE_BIS = {
 DOCTYPE_STYLES = {
     "ubl_cius": {"color": "#181818", "dash": "none", "width": 2.0, "short": "UBL CIUS"},
     "ubl_ext":  {"color": "#D90D25", "dash": "none", "width": 2.5, "short": "UBL EXT"},
-    "cii_cius": {"color": "#0B3D91", "dash": "5,3", "width": 2.0, "short": "CII CIUS"},
-    "cii_ext":  {"color": "#E08A00", "dash": "5,3", "width": 2.5, "short": "CII EXT"},
+    "cii_cius": {"color": "#0B3D91", "dash": "5,5", "width": 2.0, "short": "CII CIUS"},
+    "cii_ext":  {"color": "#E08A00", "dash": "5,5", "width": 2.5, "short": "CII EXT"},
     "facturx":  {"color": "#660000", "dash": "none", "width": 2.0, "short": "Factur-X"},
     "cdar":     {"color": "#960000", "dash": "2,3", "width": 1.6, "short": "CDAR"},
 }
