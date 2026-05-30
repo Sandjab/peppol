@@ -70,8 +70,8 @@ Pré-requis côté repo GitHub :
 
 ## Conventions
 
-- Branche de dev courante : **`claude/charming-carson-qmaFX`** (cf. consigne
-  session). Merger vers `main` pour activer le cron.
+- Dev directement sur **`main`** (branche par défaut). Le cron du workflow ne
+  se déclenche que depuis `main` : tout doit y être commité pour être actif.
 - Tout commit qui change l'historique du jour doit aussi régénérer le HTML
   publié (le workflow s'en charge automatiquement).
 - Pas de secrets nécessaires : l'API Peppol Directory est publique.
