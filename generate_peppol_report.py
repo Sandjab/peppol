@@ -608,10 +608,34 @@ def render_svg_ratio(history: dict, width: int = 800, height: int = 260) -> str:
     path_d = " ".join(f"{'M' if i == 0 else 'L'}{x_for(d):.1f},{y_for(v):.1f}" for i, (d, v) in enumerate(pts))
     out.append(f'<path d="{path_d}" fill="none" stroke="#D90D25" stroke-width="2.5" '
                f'stroke-linecap="round" stroke-linejoin="round"/>')
-    for d, v in pts:
-        out.append(f'<circle cx="{x_for(d):.1f}" cy="{y_for(v):.1f}" r="3.0" fill="#D90D25"/>')
+    # Marqueurs : tous les points. Labels % : \u00e9claircis pour \u00e9viter le
+    # chevauchement quand l'historique se densifie. On garde toujours le
+    # premier, le dernier et les extrema, puis on remplit tant que l'\u00e9cart
+    # horizontal reste \u2265 LABEL_MIN_GAP_PX (largeur approx. d'un "100,0 %"
+    # en Geist Mono 9 + marge). L'axe Y gradu\u00e9 porte les valeurs des points
+    # non \u00e9tiquet\u00e9s.
+    LABEL_MIN_GAP_PX = 44
+    xs = [x_for(d) for d, _ in pts]
+    n = len(pts)
+    i_max = max(range(n), key=lambda i: values[i])
+    i_min = min(range(n), key=lambda i: values[i])
+    priority = [n - 1, 0, i_max, i_min, *range(n)]
+    labeled: set[int] = set()
+    kept_x: list[float] = []
+    for i in priority:
+        if i in labeled:
+            continue
+        if all(abs(xs[i] - kx) >= LABEL_MIN_GAP_PX for kx in kept_x):
+            labeled.add(i)
+            kept_x.append(xs[i])
+
+    for i, (d, v) in enumerate(pts):
+        out.append(f'<circle cx="{xs[i]:.1f}" cy="{y_for(v):.1f}" r="3.0" fill="#D90D25"/>')
+        if i not in labeled:
+            continue
+        anchor = "start" if i == 0 else "end" if i == n - 1 else "middle"
         label = f"{v:.1f}".replace(".", ",")
-        out.append(f'<text x="{x_for(d):.1f}" y="{y_for(v) - 8:.1f}" text-anchor="middle" '
+        out.append(f'<text x="{xs[i]:.1f}" y="{y_for(v) - 8:.1f}" text-anchor="{anchor}" '
                    f'fill="#C00404" font-weight="700">{label}\u00a0%</text>')
 
     out.append('</svg>')
