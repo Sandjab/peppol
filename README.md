@@ -205,15 +205,18 @@ Une entrée par jour, clé = `YYYY-MM-DD`. Re-run dans la journée →
 
 ## Couleurs et styles SVG
 
-Les courbes du panneau « volumes » utilisent des combinaisons couleur ×
-style de trait pour distinguer 6 doctypes dans une palette homogène :
+Les courbes du panneau « volumes » distinguent 6 doctypes par une
+combinaison couleur × style de trait. Les paires UBL/CII ont des volumes
+quasi identiques, donc des courbes superposées : la CII est tracée dans une
+couleur distincte **et** en pointillé 50/50 par-dessus l'UBL, ce qui laisse
+voir la courbe UBL en dessous à parts égales (dash `5,5` + linecap `butt`).
 
 | Doctype | Couleur | Style |
 |---|---|---|
-| UBL CIUS | noir | solide |
-| UBL EXT | rouge | solide gras |
-| CII CIUS | noir | pointillé |
-| CII EXT | rouge | pointillé gras |
+| UBL CIUS | noir `#181818` | solide |
+| UBL EXT | rouge `#D90D25` | solide gras |
+| CII CIUS | bleu `#0B3D91` | pointillé 50/50 |
+| CII EXT | orange `#E08A00` | pointillé 50/50 gras |
 | Factur-X | rouge sombre `#660000` | solide |
 | CDAR | rouge moyen `#960000` | pointillé fin |
 
