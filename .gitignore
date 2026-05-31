@@ -182,3 +182,16 @@ cython_debug/
 
 # Peppol report output (HTML, PDF, per-run stats JSON)
 out/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+.DocumentRevisions-V100
+.TemporaryItems
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
