@@ -75,8 +75,8 @@ HISTORY_FILENAME = "peppol_history.json"
 # Réforme française CTC : obligation de réception pour toutes les entités
 # assujetties à la TVA au 1er septembre 2026.
 PASR_DEADLINE = date(2026, 9, 1)
-# Univers TVA en France (DGFiP, communiqué 16/01/2026).
-UNIVERSE_VAT_ENTITIES = 10_000_000
+# Univers TVA en France.
+UNIVERSE_VAT_ENTITIES = 4_500_000
 # Annuaire central PPF (DGFiP) — entités déjà inscrites à mi-janvier 2026.
 UNIVERSE_CENTRAL_DIRECTORY = 600_000
 
