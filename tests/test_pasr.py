@@ -34,7 +34,7 @@ def _history(*entries):
 class TestBuildPasrContext:
     def test_constants_are_sane(self):
         assert PASR_DEADLINE == date(2026, 9, 1)
-        assert UNIVERSE_VAT_ENTITIES == 10_000_000
+        assert UNIVERSE_VAT_ENTITIES == 4_500_000
         assert UNIVERSE_CENTRAL_DIRECTORY == 600_000
 
     def test_days_remaining_positive(self):
@@ -113,7 +113,7 @@ class TestBuildPasrContext:
         assert abs(ctx["velocity_required_central"] - expected) < 1e-9
 
     def test_velocity_required_zero_when_already_above_target(self):
-        h = _history(("2026-05-28", 5_000_000))  # already above central target
+        h = _history(("2026-05-28", 1_000_000))  # already above central target
         ctx = build_pasr_context(h, date(2026, 5, 28))
         assert ctx["velocity_required_central"] == 0.0
         # But still positive for VAT universe
@@ -123,7 +123,7 @@ class TestBuildPasrContext:
         h = _history(("2026-05-28", 60_000))
         ctx = build_pasr_context(h, date(2026, 5, 28))
         assert ctx["pct_central"] == 10.0  # 60k / 600k
-        assert ctx["pct_vat"] == 0.6        # 60k / 10M
+        assert abs(ctx["pct_vat"] - (60_000 / 4_500_000 * 100)) < 1e-9  # 60k / 4.5M
 
     def test_empty_history_today_yields_zero_count(self):
         # Today has no run: builder still returns a valid context.
