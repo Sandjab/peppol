@@ -58,7 +58,21 @@ jobs:
           else
             git add peppol_history.json
             git commit -m "chore(history): daily run $(date -u +%Y-%m-%d)"
-            git push origin HEAD:${{ github.ref_name }}
+            # La branche locale peut avoir pris du retard entre le checkout et le
+            # push (commit concurrent sur main → push rejeté « fetch first »).
+            # On rebase sur l'état distant puis on réessaie avec backoff.
+            branch="${{ github.ref_name }}"
+            for attempt in 1 2 3 4 5; do
+              if git push origin HEAD:"$branch"; then
+                echo "Push OK (tentative $attempt)."
+                exit 0
+              fi
+              echo "Push rejeté (tentative $attempt) — rebase sur origin/$branch…"
+              git pull --rebase origin "$branch"
+              sleep $((attempt * 2))
+            done
+            echo "::error::Échec du push après 5 tentatives."
+            exit 1
           fi
 
       - name: Upload Pages artifact
