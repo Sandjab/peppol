@@ -49,6 +49,14 @@ jobs:
           cp ./site/peppol_extension_report.html ./site/index.html
           ls -la ./site
 
+      # Compteur de visites anonyme (GoatCounter, sans cookie) : posé sur la
+      # copie publiée seulement, jamais dans les sources. Le grep échoue si
+      # l'injection n'a rien touché.
+      - name: Poser le compteur de visites
+        run: |
+          find ./site -name '*.html' -exec sed -i 's|</body>|<script data-goatcounter="https://sandjab.goatcounter.com/count" async src="//gc.zgo.at/count.js"></script>\n</body>|' {} +
+          grep -rl goatcounter ./site --include='*.html' >/dev/null
+
       - name: Commit updated history
         run: |
           git config user.name  "github-actions[bot]"
